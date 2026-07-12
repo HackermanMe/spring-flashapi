@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" fill="none">
+  <!-- Background pill -->
+  <rect x="0" y="0" width="400" height="120" rx="16" fill="#1a1a2e"/>
+
+  <!-- Lightning bolt (Flash) -->
+  <g transform="translate(24, 12)">
+    <path d="M52 4L20 52h20L32 92l40-52H52L60 4z" fill="#FFD700" stroke="#FFA500" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Spring leaf integrated into bolt -->
+    <ellipse cx="42" cy="48" rx="8" ry="14" fill="#6DB33F" opacity="0.85" transform="rotate(-20 42 48)"/>
+    <path d="M42 36 Q44 48 42 62" stroke="#4a8c2a" stroke-width="1.5" fill="none"/>
+  </g>
+
+  <!-- Text: Spring FlashAPI -->
+  <text x="110" y="58" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="32" font-weight="700" fill="#ffffff">
+    <tspan fill="#6DB33F">Spring</tspan> <tspan fill="#FFD700">Flash</tspan><tspan fill="#ffffff">API</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="110" y="84" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="13" fill="#8892a4" letter-spacing="0.5">
+    Zero-config REST APIs from JPA entities
+  </text>
+
+  <!-- Version badge -->
+  <rect x="110" y="94" width="42" height="18" rx="9" fill="#2d2d44"/>
+  <text x="131" y="107" font-family="monospace" font-size="10" fill="#8892a4" text-anchor="middle">v1.0</text>
+
+  <!-- Java badge -->
+  <rect x="158" y="94" width="52" height="18" rx="9" fill="#2d2d44"/>
+  <text x="184" y="107" font-family="monospace" font-size="10" fill="#ED8B00" text-anchor="middle">Java 17+</text>
+
+  <!-- Spring Boot badge -->
+  <rect x="216" y="94" width="82" height="18" rx="9" fill="#2d2d44"/>
+  <text x="257" y="107" font-family="monospace" font-size="10" fill="#6DB33F" text-anchor="middle">Spring Boot 3</text>
+</svg>
