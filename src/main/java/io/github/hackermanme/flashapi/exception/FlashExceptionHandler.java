@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.exception;
 
+import io.github.hackermanme.flashapi.export.ExportUnavailableException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,14 @@ public class FlashExceptionHandler {
         body.put("status", 400);
         body.put("error", "Validation failed");
         body.put("errors", errors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ExportUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleExportUnavailable(ExportUnavailableException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", 400);
+        body.put("error", ex.getMessage());
         return ResponseEntity.badRequest().body(body);
     }
 

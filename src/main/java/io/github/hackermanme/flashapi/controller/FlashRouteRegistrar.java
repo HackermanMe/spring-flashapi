@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.service.FlashCrudOperations;
@@ -27,16 +28,19 @@ public final class FlashRouteRegistrar {
     private final RequestMappingHandlerMapping handlerMapping;
     private final GenericCrudService crudService;
     private final ServiceResolver serviceResolver;
+    private final ExportHandler exportHandler;
     private final String basePath;
     private final Set<String> existingMappings;
 
     public FlashRouteRegistrar(RequestMappingHandlerMapping handlerMapping,
                                GenericCrudService crudService,
                                ServiceResolver serviceResolver,
+                               ExportHandler exportHandler,
                                String basePath) {
         this.handlerMapping = handlerMapping;
         this.crudService = crudService;
         this.serviceResolver = serviceResolver;
+        this.exportHandler = exportHandler;
         this.basePath = normalizePath(basePath);
         this.existingMappings = snapshotExistingMappings();
     }
@@ -44,7 +48,7 @@ public final class FlashRouteRegistrar {
     public void registerAll(List<EntityMetadata> entities) {
         for (EntityMetadata meta : entities) {
             FlashCrudOperations<Object, Object> custom = serviceResolver.resolve(meta);
-            FlashController controller = new FlashController(meta, crudService, custom);
+            FlashController controller = new FlashController(meta, crudService, custom, exportHandler);
             registerEntity(meta, controller);
         }
     }
@@ -75,6 +79,9 @@ public final class FlashRouteRegistrar {
             if (meta.auditEnabled()) {
                 register(itemPath + "/history", RequestMethod.GET, controller, "history");
             }
+            if (meta.isOperationAllowed(CrudOperation.LIST)) {
+                register(collectionPath + "/export", RequestMethod.GET, controller, "export");
+            }
             log.info("FlashAPI: routes registered for {} at {}", meta.entityName(), collectionPath);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException("FlashAPI internal error: missing handler method", e);
@@ -99,6 +106,7 @@ public final class FlashRouteRegistrar {
         var handler = new FlashEndpointHandler(controller, handlerMethodName);
         var handleMethod = FlashEndpointHandler.class.getMethod("handle",
                 jakarta.servlet.http.HttpServletRequest.class,
+                jakarta.servlet.http.HttpServletResponse.class,
                 java.util.Map.class, java.util.Map.class);
 
         handlerMapping.registerMapping(info, handler, handleMethod);

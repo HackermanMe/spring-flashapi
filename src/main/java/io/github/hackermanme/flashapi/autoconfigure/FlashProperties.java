@@ -14,6 +14,7 @@ public class FlashProperties {
     private int maxPageSize = 100;
     private AuditProperties audit = new AuditProperties();
     private SoftDeleteProperties softDelete = new SoftDeleteProperties();
+    private ExportProperties export = new ExportProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -29,6 +30,20 @@ public class FlashProperties {
 
     public SoftDeleteProperties getSoftDelete() { return softDelete; }
     public void setSoftDelete(SoftDeleteProperties softDelete) { this.softDelete = softDelete; }
+
+    public ExportProperties getExport() { return export; }
+    public void setExport(ExportProperties export) { this.export = export; }
+
+    public static class ExportProperties {
+        private int maxRows = 0;
+        private String reportsPath = "flashapi/reports";
+
+        public int getMaxRows() { return maxRows; }
+        public void setMaxRows(int maxRows) { this.maxRows = maxRows; }
+
+        public String getReportsPath() { return reportsPath; }
+        public void setReportsPath(String reportsPath) { this.reportsPath = reportsPath; }
+    }
 
     public static class AuditProperties {
         private boolean enabled = true;

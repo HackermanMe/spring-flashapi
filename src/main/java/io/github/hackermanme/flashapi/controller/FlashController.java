@@ -1,10 +1,13 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.export.ExportFormat;
+import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.service.FlashCrudOperations;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -22,17 +26,20 @@ import java.util.*;
 public final class FlashController {
 
     private static final Set<String> RESERVED_PARAMS = Set.of(
-            "page", "size", "sort", "search", "expand");
+            "page", "size", "sort", "search", "expand", "format");
 
     private final EntityMetadata metadata;
     private final GenericCrudService crudService;
     private final FlashCrudOperations<Object, Object> customService;
+    private final ExportHandler exportHandler;
 
     public FlashController(EntityMetadata metadata, GenericCrudService crudService,
-                           FlashCrudOperations<Object, Object> customService) {
+                           FlashCrudOperations<Object, Object> customService,
+                           ExportHandler exportHandler) {
         this.metadata = metadata;
         this.crudService = crudService;
         this.customService = customService;
+        this.exportHandler = exportHandler;
     }
 
     public ResponseEntity<Map<String, Object>> list(Map<String, String> params) {
@@ -131,6 +138,27 @@ public final class FlashController {
         }
         var entries = crudService.getHistory(metadata, id);
         return ResponseEntity.ok(Map.of("data", entries));
+    }
+
+    public void export(Map<String, String> params, HttpServletResponse response) throws IOException {
+        if (!metadata.isOperationAllowed(CrudOperation.LIST)) {
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            return;
+        }
+
+        Map<String, String> mutable = new HashMap<>(params);
+        String formatParam = mutable.remove("format");
+        ExportFormat format = ExportFormat.fromParam(formatParam);
+        if (format == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                    "Invalid or missing 'format' parameter. Supported: csv, xlsx, pdf");
+            return;
+        }
+
+        String sortParam = mutable.remove("sort");
+        RESERVED_PARAMS.forEach(mutable::remove);
+
+        exportHandler.export(metadata, format, mutable, sortParam, response);
     }
 
     public EntityMetadata getMetadata() {

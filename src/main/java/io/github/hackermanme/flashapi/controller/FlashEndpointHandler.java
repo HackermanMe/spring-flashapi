@@ -1,10 +1,12 @@
 package io.github.hackermanme.flashapi.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -24,8 +26,14 @@ public final class FlashEndpointHandler {
 
     public ResponseEntity<?> handle(
             HttpServletRequest request,
+            HttpServletResponse response,
             @RequestParam(required = false) Map<String, String> params,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> body) throws IOException {
+
+        if ("export".equals(operation)) {
+            controller.export(params != null ? params : Map.of(), response);
+            return null;
+        }
 
         return switch (operation) {
             case "list" -> controller.list(params != null ? params : Map.of());

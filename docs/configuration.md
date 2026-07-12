@@ -14,6 +14,9 @@ flashapi:
     table-name: flash_audit_entry
   soft-delete:
     column-name: deletedAt
+  export:
+    max-rows: 0
+    reports-path: flashapi/reports
 ```
 
 ## Property Reference
@@ -38,6 +41,13 @@ flashapi:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `flashapi.soft-delete.column-name` | String | `deletedAt` | Field name used for soft delete timestamps |
+
+### Export
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `flashapi.export.max-rows` | int | `0` | Maximum rows per export (`0` = unlimited). Truncates and logs a warning when exceeded. |
+| `flashapi.export.reports-path` | String | `flashapi/reports` | Classpath path where FlashAPI looks for custom `.jrxml` PDF templates |
 
 ## Overriding per entity
 

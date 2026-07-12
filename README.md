@@ -34,11 +34,12 @@ public class Product {
 That's it. You now have:
 
 ```
-GET    /api/products          — paginated list with filtering & sorting
-GET    /api/products/{id}     — single resource
-POST   /api/products          — create
-PUT    /api/products/{id}     — update
-DELETE /api/products/{id}     — delete (or soft-delete)
+GET    /api/products              — paginated list with filtering & sorting
+GET    /api/products/{id}         — single resource
+POST   /api/products              — create
+PUT    /api/products/{id}         — update
+DELETE /api/products/{id}         — delete (or soft-delete)
+GET    /api/products/export?format=csv  — export (csv, xlsx, pdf)
 ```
 
 ## Features
@@ -47,6 +48,7 @@ DELETE /api/products/{id}     — delete (or soft-delete)
 - **Progressive disclosure** — FlashAPI recedes as you define your own services or controllers
 - **Dynamic filtering** — `?price.gte=100&name.contains=phone` with 11 operators
 - **Pagination & sorting** — `?page=0&size=20&sort=name,asc`
+- **Export** — CSV, Excel, and PDF with one query param (`?format=csv`)
 - **Soft delete** — timestamp-based with restore endpoint
 - **Audit trail** — who changed what, when, with field-level diffs
 - **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`
@@ -147,6 +149,51 @@ All list endpoints support dynamic filtering:
 | `isnull` | `?deletedAt.isnull=true` | Is null |
 | `in` | `?status.in=active,pending` | In list |
 
+## Export
+
+Every entity with LIST access automatically gets an export endpoint:
+
+```
+GET /api/products/export?format=csv
+GET /api/products/export?format=xlsx
+GET /api/products/export?format=pdf
+```
+
+All filters and sorting apply to exports too:
+
+```
+GET /api/products/export?format=csv&price.gte=100&sort=name,asc
+```
+
+| Format | Dependency required | Description |
+|--------|-------------------|-------------|
+| CSV | None | Always available, UTF-8 with BOM |
+| XLSX | `org.apache.poi:poi-ooxml` | Streaming Excel (constant memory) |
+| PDF | `net.sf.jasperreports:jasperreports` | Auto-generated table or custom template |
+
+### PDF with custom JasperReports templates
+
+Place a `.jrxml` file matching your entity path in `classpath:flashapi/reports/`:
+
+```
+src/main/resources/flashapi/reports/products.jrxml
+```
+
+FlashAPI will use your template and feed it the filtered data. If no template exists, a clean table layout is generated dynamically.
+
+Available parameters in your template:
+- `ENTITY_NAME` — the entity name (e.g., "Product")
+- `RECORD_COUNT` — total number of records in this export
+
+### Configuration
+
+```yaml
+flashapi:
+  export:
+    max-rows: 0         # 0 = unlimited, set a cap to prevent abuse
+    reports-path: flashapi/reports  # classpath location for .jrxml templates
+```
+
 ## Configuration
 
 ```yaml
@@ -158,6 +205,9 @@ flashapi:
     enabled: true
   soft-delete:
     column-name: deletedAt
+  export:
+    max-rows: 0
+    reports-path: flashapi/reports
 ```
 
 ## Documentation
@@ -167,6 +217,7 @@ flashapi:
 | [Getting Started](docs/getting-started.md) | Installation and first steps |
 | [Annotations](docs/annotations.md) | Full annotation reference |
 | [Custom Services](docs/custom-service.md) | Taking control of business logic |
+| [Export](docs/export.md) | CSV, Excel, and PDF export |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |
 | [Configuration](docs/configuration.md) | All available properties |
