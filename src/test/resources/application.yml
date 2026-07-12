@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+flashapi:
+  base-path: /api
+  default-page-size: 20
+  max-page-size: 100
+  audit:
+    enabled: true
+    table-name: flash_audit_entry
+  soft-delete:
+    column-name: deletedAt
