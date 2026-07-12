@@ -12,7 +12,7 @@ Add to your `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>io.flashapi</groupId>
+    <groupId>io.github.hackermanme</groupId>
     <artifactId>spring-flashapi</artifactId>
     <version>1.0.0</version>
 </dependency>

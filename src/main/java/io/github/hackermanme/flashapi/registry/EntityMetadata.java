@@ -1,0 +1,33 @@
+package io.github.hackermanme.flashapi.registry;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Immutable metadata for a registered entity.
+ * Built once at startup. All collections are pre-computed — no allocation at request time.
+ */
+public record EntityMetadata(
+        Class<?> entityClass,
+        String entityName,
+        String path,
+        String idFieldName,
+        Class<?> idType,
+        boolean softDelete,
+        boolean auditEnabled,
+        boolean auditTrackFields,
+        boolean cacheEnabled,
+        int cacheTtl,
+        Set<CrudOperation> allowedOperations,
+        List<FieldMetadata> fields,
+        Map<String, FieldMetadata> fieldsByName,
+        List<FieldMetadata> creatableFields,
+        List<FieldMetadata> updatableFields,
+        List<FieldMetadata> visibleFields,
+        FieldMetadata primaryKeyField
+) {
+    public boolean isOperationAllowed(CrudOperation op) {
+        return allowedOperations.contains(op);
+    }
+}

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="Spring FlashAPI" width="400"/>
+  <img src="docs/assets/logo1.svg" alt="Spring FlashAPI" width="400"/>
 </p>
 
 <p align="center">
@@ -60,7 +60,7 @@ DELETE /api/products/{id}     — delete (or soft-delete)
 
 ```xml
 <dependency>
-    <groupId>io.flashapi</groupId>
+    <groupId>io.github.hackermanme</groupId>
     <artifactId>spring-flashapi</artifactId>
     <version>1.0.0</version>
 </dependency>
