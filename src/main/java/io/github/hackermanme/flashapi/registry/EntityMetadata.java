@@ -25,9 +25,15 @@ public record EntityMetadata(
         List<FieldMetadata> creatableFields,
         List<FieldMetadata> updatableFields,
         List<FieldMetadata> visibleFields,
-        FieldMetadata primaryKeyField
+        FieldMetadata primaryKeyField,
+        List<RelationMetadata> relations,
+        Map<String, RelationMetadata> relationsByName
 ) {
     public boolean isOperationAllowed(CrudOperation op) {
         return allowedOperations.contains(op);
+    }
+
+    public boolean hasRelations() {
+        return relations != null && !relations.isEmpty();
     }
 }

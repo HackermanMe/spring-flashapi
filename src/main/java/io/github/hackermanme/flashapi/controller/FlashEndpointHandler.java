@@ -37,7 +37,7 @@ public final class FlashEndpointHandler {
 
         return switch (operation) {
             case "list" -> controller.list(params != null ? params : Map.of());
-            case "getById" -> controller.getById(extractId(request));
+            case "getById" -> controller.getById(extractId(request), params);
             case "create" -> controller.create(body != null ? body : Map.of());
             case "update" -> controller.update(extractId(request), body != null ? body : Map.of());
             case "delete" -> controller.delete(extractId(request));

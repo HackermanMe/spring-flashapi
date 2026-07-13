@@ -19,6 +19,8 @@ flashapi:
     reports-path: flashapi/reports
   bulk:
     max-items: 100
+  relations:
+    max-depth: 1
 ```
 
 ## Property Reference
@@ -56,6 +58,12 @@ flashapi:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `flashapi.bulk.max-items` | int | `100` | Maximum items per bulk request. Returns HTTP 413 if exceeded. |
+
+### Relations
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `flashapi.relations.max-depth` | int | `1` | Maximum depth for `?expand` recursion. `1` = direct relations only. |
 
 ## Overriding per entity
 

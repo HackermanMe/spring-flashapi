@@ -5,9 +5,7 @@ import io.github.hackermanme.flashapi.annotation.FlashEntity;
 import io.github.hackermanme.flashapi.annotation.FlashHidden;
 import io.github.hackermanme.flashapi.annotation.FlashReadOnly;
 import io.github.hackermanme.flashapi.annotation.FlashWriteOnly;
-import jakarta.persistence.Column;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -16,6 +14,8 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -65,14 +65,20 @@ public final class EntityScanner {
         boolean auditTrackFields = auditAnnotation != null && auditAnnotation.trackFields();
 
         List<FieldMetadata> fields = new ArrayList<>();
+        List<RelationMetadata> relations = new ArrayList<>();
         FieldMetadata pkField = null;
 
         for (Field field : collectInstanceFields(clazz)) {
             field.setAccessible(true);
-            FieldMetadata fm = buildFieldMetadata(field);
-            fields.add(fm);
-            if (fm.primaryKey()) {
-                pkField = fm;
+            RelationMetadata rel = buildRelationMetadata(field);
+            if (rel != null) {
+                relations.add(rel);
+            } else {
+                FieldMetadata fm = buildFieldMetadata(field);
+                fields.add(fm);
+                if (fm.primaryKey()) {
+                    pkField = fm;
+                }
             }
         }
 
@@ -91,14 +97,56 @@ public final class EntityScanner {
         List<FieldMetadata> visibleFields = immutableFields.stream()
                 .filter(FieldMetadata::isVisibleInResponse).toList();
 
+        List<RelationMetadata> immutableRelations = Collections.unmodifiableList(relations);
+        Map<String, RelationMetadata> relationsByName = immutableRelations.stream()
+                .collect(Collectors.toUnmodifiableMap(RelationMetadata::name, Function.identity()));
+
         return new EntityMetadata(
                 clazz, clazz.getSimpleName(), path,
                 pkField.name(), pkField.type(),
                 annotation.softDelete(), auditEnabled, auditTrackFields,
                 annotation.cache(), annotation.cacheTtl(),
                 ops, immutableFields, fieldsByName,
-                creatableFields, updatableFields, visibleFields, pkField
+                creatableFields, updatableFields, visibleFields, pkField,
+                immutableRelations, relationsByName
         );
+    }
+
+    private static RelationMetadata buildRelationMetadata(Field field) {
+        RelationMetadata.RelationType type = null;
+        String mappedBy = "";
+        Class<?> target = null;
+
+        if (field.isAnnotationPresent(ManyToOne.class)) {
+            type = RelationMetadata.RelationType.MANY_TO_ONE;
+            target = field.getType();
+        } else if (field.isAnnotationPresent(OneToOne.class)) {
+            type = RelationMetadata.RelationType.ONE_TO_ONE;
+            mappedBy = field.getAnnotation(OneToOne.class).mappedBy();
+            target = field.getType();
+        } else if (field.isAnnotationPresent(OneToMany.class)) {
+            type = RelationMetadata.RelationType.ONE_TO_MANY;
+            mappedBy = field.getAnnotation(OneToMany.class).mappedBy();
+            target = resolveCollectionType(field);
+        } else if (field.isAnnotationPresent(ManyToMany.class)) {
+            type = RelationMetadata.RelationType.MANY_TO_MANY;
+            mappedBy = field.getAnnotation(ManyToMany.class).mappedBy();
+            target = resolveCollectionType(field);
+        }
+
+        if (type == null) return null;
+        return new RelationMetadata(field.getName(), type, target, mappedBy, field);
+    }
+
+    private static Class<?> resolveCollectionType(Field field) {
+        Type generic = field.getGenericType();
+        if (generic instanceof ParameterizedType pt) {
+            Type[] args = pt.getActualTypeArguments();
+            if (args.length > 0 && args[0] instanceof Class<?> c) {
+                return c;
+            }
+        }
+        return Object.class;
     }
 
     private static FieldMetadata buildFieldMetadata(Field field) {

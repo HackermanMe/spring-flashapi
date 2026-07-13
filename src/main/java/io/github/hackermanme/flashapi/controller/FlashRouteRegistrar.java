@@ -4,6 +4,7 @@ import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
+import io.github.hackermanme.flashapi.relation.RelationExpander;
 import io.github.hackermanme.flashapi.service.FlashCrudOperations;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
 import io.github.hackermanme.flashapi.service.ServiceResolver;
@@ -31,6 +32,7 @@ public final class FlashRouteRegistrar {
     private final ServiceResolver serviceResolver;
     private final ExportHandler exportHandler;
     private final BulkHandler bulkHandler;
+    private final RelationExpander relationExpander;
     private final String basePath;
     private final Set<String> existingMappings;
 
@@ -39,12 +41,14 @@ public final class FlashRouteRegistrar {
                                ServiceResolver serviceResolver,
                                ExportHandler exportHandler,
                                BulkHandler bulkHandler,
+                               RelationExpander relationExpander,
                                String basePath) {
         this.handlerMapping = handlerMapping;
         this.crudService = crudService;
         this.serviceResolver = serviceResolver;
         this.exportHandler = exportHandler;
         this.bulkHandler = bulkHandler;
+        this.relationExpander = relationExpander;
         this.basePath = normalizePath(basePath);
         this.existingMappings = snapshotExistingMappings();
     }
@@ -52,7 +56,8 @@ public final class FlashRouteRegistrar {
     public void registerAll(List<EntityMetadata> entities) {
         for (EntityMetadata meta : entities) {
             FlashCrudOperations<Object, Object> custom = serviceResolver.resolve(meta);
-            FlashController controller = new FlashController(meta, crudService, custom, exportHandler, bulkHandler);
+            FlashController controller = new FlashController(
+                    meta, crudService, custom, exportHandler, bulkHandler, relationExpander);
             registerEntity(meta, controller);
         }
     }

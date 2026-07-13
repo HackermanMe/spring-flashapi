@@ -26,6 +26,10 @@ public class Product {
 
     private Integer stock;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @FlashWriteOnly
     private String internalCode;
 
@@ -45,6 +49,8 @@ public class Product {
     public void setPrice(BigDecimal price) { this.price = price; }
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
+    public Category getCategory() { return category; }
+    public void setCategory(Category category) { this.category = category; }
     public String getInternalCode() { return internalCode; }
     public void setInternalCode(String internalCode) { this.internalCode = internalCode; }
     public String getSecretToken() { return secretToken; }

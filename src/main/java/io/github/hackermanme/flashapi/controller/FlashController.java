@@ -7,6 +7,7 @@ import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
+import io.github.hackermanme.flashapi.relation.RelationExpander;
 import io.github.hackermanme.flashapi.service.FlashCrudOperations;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -35,15 +36,18 @@ public final class FlashController {
     private final FlashCrudOperations<Object, Object> customService;
     private final ExportHandler exportHandler;
     private final BulkHandler bulkHandler;
+    private final RelationExpander relationExpander;
 
     public FlashController(EntityMetadata metadata, GenericCrudService crudService,
                            FlashCrudOperations<Object, Object> customService,
-                           ExportHandler exportHandler, BulkHandler bulkHandler) {
+                           ExportHandler exportHandler, BulkHandler bulkHandler,
+                           RelationExpander relationExpander) {
         this.metadata = metadata;
         this.crudService = crudService;
         this.customService = customService;
         this.exportHandler = exportHandler;
         this.bulkHandler = bulkHandler;
+        this.relationExpander = relationExpander;
     }
 
     public ResponseEntity<Map<String, Object>> list(Map<String, String> params) {
@@ -55,6 +59,7 @@ public final class FlashController {
         int page = extractInt(mutable.remove("page"), 0);
         int size = Math.clamp(extractInt(mutable.remove("size"), 20), 1, 100);
         String sortParam = mutable.remove("sort");
+        Set<String> expandFields = parseExpand(mutable.remove("expand"));
         RESERVED_PARAMS.forEach(mutable::remove);
 
         Pageable pageable = buildPageable(page, size, sortParam);
@@ -63,7 +68,7 @@ public final class FlashController {
                 : crudService.list(metadata, pageable, mutable);
 
         List<Map<String, Object>> data = result.getContent().stream()
-                .map(this::serialize)
+                .map(e -> serialize(e, expandFields))
                 .toList();
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -77,15 +82,16 @@ public final class FlashController {
         return ResponseEntity.ok(response);
     }
 
-    public ResponseEntity<Map<String, Object>> getById(Object id) {
+    public ResponseEntity<Map<String, Object>> getById(Object id, Map<String, String> params) {
         if (!metadata.isOperationAllowed(CrudOperation.READ)) {
             return methodNotAllowed();
         }
+        Set<String> expandFields = parseExpand(params != null ? params.get("expand") : null);
         Optional<Object> found = customService != null
                 ? customService.findById(id).map(e -> (Object) e)
                 : crudService.findById(metadata, id);
         return found
-                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e))))
+                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, expandFields))))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -97,7 +103,7 @@ public final class FlashController {
                 ? customService.create(body)
                 : crudService.create(metadata, body);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of("data", serialize(created)));
+                .body(Map.of("data", serialize(created, Set.of())));
     }
 
     public ResponseEntity<Map<String, Object>> update(Object id, Map<String, Object> body) {
@@ -108,7 +114,7 @@ public final class FlashController {
                 ? customService.update(id, body).map(e -> (Object) e)
                 : crudService.update(metadata, id, body);
         return updated
-                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e))))
+                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, Set.of()))))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -215,7 +221,10 @@ public final class FlashController {
         return metadata;
     }
 
-    private Map<String, Object> serialize(Object entity) {
+    private Map<String, Object> serialize(Object entity, Set<String> expandFields) {
+        if (expandFields != null && !expandFields.isEmpty() && metadata.hasRelations()) {
+            return relationExpander.serialize(metadata, entity, expandFields);
+        }
         Map<String, Object> map = new LinkedHashMap<>();
         for (FieldMetadata field : metadata.visibleFields()) {
             try {
@@ -225,6 +234,11 @@ public final class FlashController {
             }
         }
         return map;
+    }
+
+    private Set<String> parseExpand(String expandParam) {
+        if (expandParam == null || expandParam.isBlank()) return Set.of();
+        return Set.of(expandParam.split(","));
     }
 
     private Pageable buildPageable(int page, int size, String sortParam) {
