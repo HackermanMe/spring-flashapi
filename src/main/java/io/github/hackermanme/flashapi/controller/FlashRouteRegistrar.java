@@ -1,7 +1,9 @@
 package io.github.hackermanme.flashapi.controller;
 
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
+import io.github.hackermanme.flashapi.cache.FlashCacheManager;
 import io.github.hackermanme.flashapi.export.ExportHandler;
+import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.relation.RelationExpander;
@@ -33,6 +35,8 @@ public final class FlashRouteRegistrar {
     private final ExportHandler exportHandler;
     private final BulkHandler bulkHandler;
     private final RelationExpander relationExpander;
+    private final FlashCacheManager cacheManager;
+    private final FlashRateLimiter rateLimiter;
     private final String basePath;
     private final Set<String> existingMappings;
 
@@ -42,6 +46,8 @@ public final class FlashRouteRegistrar {
                                ExportHandler exportHandler,
                                BulkHandler bulkHandler,
                                RelationExpander relationExpander,
+                               FlashCacheManager cacheManager,
+                               FlashRateLimiter rateLimiter,
                                String basePath) {
         this.handlerMapping = handlerMapping;
         this.crudService = crudService;
@@ -49,6 +55,8 @@ public final class FlashRouteRegistrar {
         this.exportHandler = exportHandler;
         this.bulkHandler = bulkHandler;
         this.relationExpander = relationExpander;
+        this.cacheManager = cacheManager;
+        this.rateLimiter = rateLimiter;
         this.basePath = normalizePath(basePath);
         this.existingMappings = snapshotExistingMappings();
     }
@@ -57,7 +65,7 @@ public final class FlashRouteRegistrar {
         for (EntityMetadata meta : entities) {
             FlashCrudOperations<Object, Object> custom = serviceResolver.resolve(meta);
             FlashController controller = new FlashController(
-                    meta, crudService, custom, exportHandler, bulkHandler, relationExpander);
+                    meta, crudService, custom, exportHandler, bulkHandler, relationExpander, cacheManager);
             registerEntity(meta, controller);
         }
     }
@@ -121,7 +129,7 @@ public final class FlashRouteRegistrar {
                 .methods(method)
                 .build();
 
-        var handler = new FlashEndpointHandler(controller, handlerMethodName);
+        var handler = new FlashEndpointHandler(controller, handlerMethodName, rateLimiter);
         var handleMethod = FlashEndpointHandler.class.getMethod("handle",
                 jakarta.servlet.http.HttpServletRequest.class,
                 jakarta.servlet.http.HttpServletResponse.class,
@@ -145,7 +153,7 @@ public final class FlashRouteRegistrar {
                 .methods(method)
                 .build();
 
-        var handler = new FlashBulkEndpointHandler(controller, handlerMethodName);
+        var handler = new FlashBulkEndpointHandler(controller, handlerMethodName, rateLimiter);
         var handleMethod = FlashBulkEndpointHandler.class.getMethod("handle",
                 jakarta.servlet.http.HttpServletRequest.class, Object.class);
 

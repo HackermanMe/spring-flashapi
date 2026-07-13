@@ -2,6 +2,7 @@ package io.github.hackermanme.flashapi.controller;
 
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.bulk.BulkResponse;
+import io.github.hackermanme.flashapi.cache.FlashCacheManager;
 import io.github.hackermanme.flashapi.export.ExportFormat;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
@@ -29,7 +30,7 @@ import java.util.*;
 public final class FlashController {
 
     private static final Set<String> RESERVED_PARAMS = Set.of(
-            "page", "size", "sort", "search", "expand", "format");
+            "page", "size", "sort", "expand", "format");
 
     private final EntityMetadata metadata;
     private final GenericCrudService crudService;
@@ -37,19 +38,22 @@ public final class FlashController {
     private final ExportHandler exportHandler;
     private final BulkHandler bulkHandler;
     private final RelationExpander relationExpander;
+    private final FlashCacheManager cacheManager;
 
     public FlashController(EntityMetadata metadata, GenericCrudService crudService,
                            FlashCrudOperations<Object, Object> customService,
                            ExportHandler exportHandler, BulkHandler bulkHandler,
-                           RelationExpander relationExpander) {
+                           RelationExpander relationExpander, FlashCacheManager cacheManager) {
         this.metadata = metadata;
         this.crudService = crudService;
         this.customService = customService;
         this.exportHandler = exportHandler;
         this.bulkHandler = bulkHandler;
         this.relationExpander = relationExpander;
+        this.cacheManager = cacheManager;
     }
 
+    @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> list(Map<String, String> params) {
         if (!metadata.isOperationAllowed(CrudOperation.LIST)) {
             return methodNotAllowed();
@@ -61,6 +65,14 @@ public final class FlashController {
         String sortParam = mutable.remove("sort");
         Set<String> expandFields = parseExpand(mutable.remove("expand"));
         RESERVED_PARAMS.forEach(mutable::remove);
+
+        String cacheKey = "list:" + page + ":" + size + ":" + sortParam + ":" + mutable;
+        if (expandFields.isEmpty()) {
+            Object cached = cacheManager.getFromCache(metadata, cacheKey);
+            if (cached != null) {
+                return ResponseEntity.ok((Map<String, Object>) cached);
+            }
+        }
 
         Pageable pageable = buildPageable(page, size, sortParam);
         Page<Object> result = customService != null
@@ -79,20 +91,39 @@ public final class FlashController {
                 "totalElements", result.getTotalElements(),
                 "totalPages", result.getTotalPages()
         ));
+
+        if (expandFields.isEmpty()) {
+            cacheManager.putInCache(metadata, cacheKey, response);
+        }
         return ResponseEntity.ok(response);
     }
 
+    @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getById(Object id, Map<String, String> params) {
         if (!metadata.isOperationAllowed(CrudOperation.READ)) {
             return methodNotAllowed();
         }
         Set<String> expandFields = parseExpand(params != null ? params.get("expand") : null);
+
+        if (expandFields.isEmpty()) {
+            String cacheKey = "id:" + id;
+            Object cached = cacheManager.getFromCache(metadata, cacheKey);
+            if (cached != null) {
+                return ResponseEntity.ok((Map<String, Object>) cached);
+            }
+        }
+
         Optional<Object> found = customService != null
                 ? customService.findById(id).map(e -> (Object) e)
                 : crudService.findById(metadata, id);
-        return found
-                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, expandFields))))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+
+        return found.map(e -> {
+            Map<String, Object> response = Map.of("data", serialize(e, expandFields));
+            if (expandFields.isEmpty()) {
+                cacheManager.putInCache(metadata, "id:" + id, response);
+            }
+            return ResponseEntity.ok(response);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     public ResponseEntity<Map<String, Object>> create(Map<String, Object> body) {
@@ -102,6 +133,7 @@ public final class FlashController {
         Object created = customService != null
                 ? customService.create(body)
                 : crudService.create(metadata, body);
+        cacheManager.evict(metadata);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("data", serialize(created, Set.of())));
     }
@@ -113,6 +145,7 @@ public final class FlashController {
         Optional<Object> updated = customService != null
                 ? customService.update(id, body).map(e -> (Object) e)
                 : crudService.update(metadata, id, body);
+        cacheManager.evict(metadata);
         return updated
                 .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, Set.of()))))
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -125,6 +158,7 @@ public final class FlashController {
         boolean deleted = customService != null
                 ? customService.delete(id)
                 : crudService.delete(metadata, id);
+        cacheManager.evict(metadata);
         return deleted
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();

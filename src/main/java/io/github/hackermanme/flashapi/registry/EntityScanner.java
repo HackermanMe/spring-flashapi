@@ -106,6 +106,7 @@ public final class EntityScanner {
                 pkField.name(), pkField.type(),
                 annotation.softDelete(), auditEnabled, auditTrackFields,
                 annotation.cache(), annotation.cacheTtl(),
+                annotation.rateLimit(), annotation.rateLimitRequests(), annotation.rateLimitWindow(),
                 ops, immutableFields, fieldsByName,
                 creatableFields, updatableFields, visibleFields, pkField,
                 immutableRelations, relationsByName

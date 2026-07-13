@@ -3,9 +3,11 @@ package io.github.hackermanme.flashapi.autoconfigure;
 import io.github.hackermanme.flashapi.annotation.EnableFlashApi;
 import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
+import io.github.hackermanme.flashapi.cache.FlashCacheManager;
 import io.github.hackermanme.flashapi.controller.FlashRouteRegistrar;
 import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
+import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.EntityScanner;
 import io.github.hackermanme.flashapi.relation.RelationExpander;
@@ -17,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -97,6 +100,23 @@ public class FlashAutoConfiguration {
         return new RelationExpander(properties.getRelations().getMaxDepth());
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public FlashCacheManager flashCacheManager() {
+        CacheManager cacheManager = null;
+        try {
+            cacheManager = context.getBean(CacheManager.class);
+        } catch (Exception ignored) {
+        }
+        return new FlashCacheManager(cacheManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public FlashRateLimiter flashRateLimiter() {
+        return new FlashRateLimiter();
+    }
+
     @EventListener(ContextRefreshedEvent.class)
     public void onApplicationReady() {
         String[] basePackages = resolveBasePackages();
@@ -116,9 +136,11 @@ public class FlashAutoConfiguration {
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
         BulkHandler bulkHandler = context.getBean(BulkHandler.class);
         RelationExpander relationExpander = context.getBean(RelationExpander.class);
+        FlashCacheManager cacheManager = context.getBean(FlashCacheManager.class);
+        FlashRateLimiter rateLimiter = context.getBean(FlashRateLimiter.class);
         FlashRouteRegistrar registrar = new FlashRouteRegistrar(
                 handlerMapping, crudService, serviceResolver, exportHandler, bulkHandler,
-                relationExpander, properties.getBasePath());
+                relationExpander, cacheManager, rateLimiter, properties.getBasePath());
         registrar.registerAll(entities);
 
         log.info("FlashAPI: {} entities registered, endpoints available at {}/",
