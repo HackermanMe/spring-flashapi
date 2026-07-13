@@ -57,6 +57,7 @@ DELETE /api/products/bulk                — batch delete
 - **Relations & expand** — `?expand=category,tags` to include related entities
 - **Intelligent caching** — transparent response caching with auto-invalidation on writes
 - **Rate limiting** — per-IP token bucket, configurable per entity
+- **OpenAPI documentation** — auto-generated spec + Swagger UI at `/api/docs`
 - **Soft delete** — timestamp-based with restore endpoint
 - **Audit trail** — who changed what, when, with field-level diffs
 - **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`
@@ -247,6 +248,7 @@ flashapi:
 | [Cache](docs/cache.md) | Intelligent response caching |
 | [Rate Limiting](docs/rate-limiting.md) | Per-IP rate limiting |
 | [Search](docs/search.md) | Full-text search across fields |
+| [OpenAPI](docs/openapi.md) | Auto-generated Swagger UI & spec |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |
 | [Configuration](docs/configuration.md) | All available properties |

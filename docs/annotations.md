@@ -36,6 +36,8 @@ This generates: `GET/POST /products`, `GET/PUT/DELETE /products/{id}`
 | `rateLimitRequests` | int | `100` | Max requests per window per IP |
 | `rateLimitWindow` | int | `60` | Rate limit window in seconds |
 
+> All entities are automatically documented in the [OpenAPI spec](openapi.md) served at `/api/docs`.
+
 **Path auto-pluralization rules:**
 - `Product` → `products`
 - `Category` → `categories`

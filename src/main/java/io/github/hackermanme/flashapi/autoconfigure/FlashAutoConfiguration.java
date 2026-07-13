@@ -7,6 +7,8 @@ import io.github.hackermanme.flashapi.cache.FlashCacheManager;
 import io.github.hackermanme.flashapi.controller.FlashRouteRegistrar;
 import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
+import io.github.hackermanme.flashapi.openapi.OpenApiController;
+import io.github.hackermanme.flashapi.openapi.OpenApiGenerator;
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.EntityScanner;
@@ -25,6 +27,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.util.List;
@@ -145,6 +149,42 @@ public class FlashAutoConfiguration {
 
         log.info("FlashAPI: {} entities registered, endpoints available at {}/",
                 entities.size(), properties.getBasePath());
+
+        if (properties.getOpenapi().isEnabled()) {
+            registerOpenApiRoutes(entities);
+        }
+    }
+
+    private void registerOpenApiRoutes(List<EntityMetadata> entities) {
+        try {
+            OpenApiGenerator generator = new OpenApiGenerator(properties, entities);
+            Map<String, Object> spec = generator.generate();
+            OpenApiController controller = new OpenApiController(spec);
+
+            String docsPath = properties.getOpenapi().getDocsPath();
+            if (docsPath.endsWith("/")) docsPath = docsPath.substring(0, docsPath.length() - 1);
+
+            var handleSpec = OpenApiController.class.getMethod("serveSpec",
+                    jakarta.servlet.http.HttpServletRequest.class,
+                    jakarta.servlet.http.HttpServletResponse.class);
+            var handleUi = OpenApiController.class.getMethod("serveUi",
+                    jakarta.servlet.http.HttpServletRequest.class,
+                    jakarta.servlet.http.HttpServletResponse.class);
+
+            handlerMapping.registerMapping(
+                    RequestMappingInfo.paths(docsPath + "/openapi.json").methods(RequestMethod.GET).build(),
+                    controller, handleSpec);
+            handlerMapping.registerMapping(
+                    RequestMappingInfo.paths(docsPath).methods(RequestMethod.GET).build(),
+                    controller, handleUi);
+            handlerMapping.registerMapping(
+                    RequestMappingInfo.paths(docsPath + "/index.html").methods(RequestMethod.GET).build(),
+                    controller, handleUi);
+
+            log.info("FlashAPI: OpenAPI docs available at {}", docsPath);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("FlashAPI internal error: OpenAPI handler method missing", e);
+        }
     }
 
     private String[] resolveBasePackages() {

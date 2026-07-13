@@ -17,6 +17,7 @@ public class FlashProperties {
     private ExportProperties export = new ExportProperties();
     private BulkProperties bulk = new BulkProperties();
     private RelationProperties relations = new RelationProperties();
+    private OpenApiProperties openapi = new OpenApiProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -41,6 +42,9 @@ public class FlashProperties {
 
     public RelationProperties getRelations() { return relations; }
     public void setRelations(RelationProperties relations) { this.relations = relations; }
+
+    public OpenApiProperties getOpenapi() { return openapi; }
+    public void setOpenapi(OpenApiProperties openapi) { this.openapi = openapi; }
 
     public static class BulkProperties {
         private int maxItems = 100;
@@ -83,5 +87,28 @@ public class FlashProperties {
 
         public String getColumnName() { return columnName; }
         public void setColumnName(String columnName) { this.columnName = columnName; }
+    }
+
+    public static class OpenApiProperties {
+        private boolean enabled = true;
+        private String title = "FlashAPI";
+        private String version = "1.0.0";
+        private String description = "Auto-generated REST API documentation";
+        private String docsPath = "/api/docs";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+
+        public String getVersion() { return version; }
+        public void setVersion(String version) { this.version = version; }
+
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+
+        public String getDocsPath() { return docsPath; }
+        public void setDocsPath(String docsPath) { this.docsPath = docsPath; }
     }
 }
