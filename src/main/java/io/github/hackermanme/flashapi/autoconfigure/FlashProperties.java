@@ -15,6 +15,7 @@ public class FlashProperties {
     private AuditProperties audit = new AuditProperties();
     private SoftDeleteProperties softDelete = new SoftDeleteProperties();
     private ExportProperties export = new ExportProperties();
+    private BulkProperties bulk = new BulkProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -33,6 +34,16 @@ public class FlashProperties {
 
     public ExportProperties getExport() { return export; }
     public void setExport(ExportProperties export) { this.export = export; }
+
+    public BulkProperties getBulk() { return bulk; }
+    public void setBulk(BulkProperties bulk) { this.bulk = bulk; }
+
+    public static class BulkProperties {
+        private int maxItems = 100;
+
+        public int getMaxItems() { return maxItems; }
+        public void setMaxItems(int maxItems) { this.maxItems = maxItems; }
+    }
 
     public static class ExportProperties {
         private int maxRows = 0;

@@ -34,12 +34,15 @@ public class Product {
 That's it. You now have:
 
 ```
-GET    /api/products              — paginated list with filtering & sorting
-GET    /api/products/{id}         — single resource
-POST   /api/products              — create
-PUT    /api/products/{id}         — update
-DELETE /api/products/{id}         — delete (or soft-delete)
-GET    /api/products/export?format=csv  — export (csv, xlsx, pdf)
+GET    /api/products                     — paginated list with filtering & sorting
+GET    /api/products/{id}                — single resource
+POST   /api/products                     — create
+PUT    /api/products/{id}                — update
+DELETE /api/products/{id}                — delete (or soft-delete)
+GET    /api/products/export?format=csv   — export (csv, xlsx, pdf)
+POST   /api/products/bulk                — batch create
+PUT    /api/products/bulk                — batch update
+DELETE /api/products/bulk                — batch delete
 ```
 
 ## Features
@@ -49,6 +52,7 @@ GET    /api/products/export?format=csv  — export (csv, xlsx, pdf)
 - **Dynamic filtering** — `?price.gte=100&name.contains=phone` with 11 operators
 - **Pagination & sorting** — `?page=0&size=20&sort=name,asc`
 - **Export** — CSV, Excel, and PDF with one query param (`?format=csv`)
+- **Bulk operations** — batch create, update, delete with per-item error reporting
 - **Soft delete** — timestamp-based with restore endpoint
 - **Audit trail** — who changed what, when, with field-level diffs
 - **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`
@@ -208,6 +212,8 @@ flashapi:
   export:
     max-rows: 0
     reports-path: flashapi/reports
+  bulk:
+    max-items: 100
 ```
 
 ## Documentation
@@ -218,6 +224,7 @@ flashapi:
 | [Annotations](docs/annotations.md) | Full annotation reference |
 | [Custom Services](docs/custom-service.md) | Taking control of business logic |
 | [Export](docs/export.md) | CSV, Excel, and PDF export |
+| [Bulk Operations](docs/bulk.md) | Batch create, update, delete |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |
 | [Configuration](docs/configuration.md) | All available properties |

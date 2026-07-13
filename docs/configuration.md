@@ -17,6 +17,8 @@ flashapi:
   export:
     max-rows: 0
     reports-path: flashapi/reports
+  bulk:
+    max-items: 100
 ```
 
 ## Property Reference
@@ -48,6 +50,12 @@ flashapi:
 |----------|------|---------|-------------|
 | `flashapi.export.max-rows` | int | `0` | Maximum rows per export (`0` = unlimited). Truncates and logs a warning when exceeded. |
 | `flashapi.export.reports-path` | String | `flashapi/reports` | Classpath path where FlashAPI looks for custom `.jrxml` PDF templates |
+
+### Bulk
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `flashapi.bulk.max-items` | int | `100` | Maximum items per bulk request. Returns HTTP 413 if exceeded. |
 
 ## Overriding per entity
 

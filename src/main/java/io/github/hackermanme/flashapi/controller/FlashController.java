@@ -1,5 +1,7 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.bulk.BulkHandler;
+import io.github.hackermanme.flashapi.bulk.BulkResponse;
 import io.github.hackermanme.flashapi.export.ExportFormat;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
@@ -32,14 +34,16 @@ public final class FlashController {
     private final GenericCrudService crudService;
     private final FlashCrudOperations<Object, Object> customService;
     private final ExportHandler exportHandler;
+    private final BulkHandler bulkHandler;
 
     public FlashController(EntityMetadata metadata, GenericCrudService crudService,
                            FlashCrudOperations<Object, Object> customService,
-                           ExportHandler exportHandler) {
+                           ExportHandler exportHandler, BulkHandler bulkHandler) {
         this.metadata = metadata;
         this.crudService = crudService;
         this.customService = customService;
         this.exportHandler = exportHandler;
+        this.bulkHandler = bulkHandler;
     }
 
     public ResponseEntity<Map<String, Object>> list(Map<String, String> params) {
@@ -138,6 +142,52 @@ public final class FlashController {
         }
         var entries = crudService.getHistory(metadata, id);
         return ResponseEntity.ok(Map.of("data", entries));
+    }
+
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<BulkResponse> bulkCreate(Object body) {
+        if (!metadata.isOperationAllowed(CrudOperation.CREATE)) {
+            return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+        }
+        List<Map<String, Object>> items = validateBulkBody(body);
+        if (items == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        BulkResponse result = bulkHandler.bulkCreate(metadata, items);
+        return ResponseEntity.status(HttpStatus.OK).body(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<BulkResponse> bulkUpdate(Object body) {
+        if (!metadata.isOperationAllowed(CrudOperation.UPDATE)) {
+            return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+        }
+        List<Map<String, Object>> items = validateBulkBody(body);
+        if (items == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        BulkResponse result = bulkHandler.bulkUpdate(metadata, items);
+        return ResponseEntity.ok(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<BulkResponse> bulkDelete(Object body) {
+        if (!metadata.isOperationAllowed(CrudOperation.DELETE)) {
+            return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+        }
+        if (!(body instanceof List<?> ids)) {
+            return ResponseEntity.badRequest().build();
+        }
+        BulkResponse result = bulkHandler.bulkDelete(metadata, (List<Object>) ids);
+        return ResponseEntity.ok(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> validateBulkBody(Object body) {
+        if (!(body instanceof List<?> list)) return null;
+        if (list.isEmpty()) return null;
+        if (!(list.get(0) instanceof Map)) return null;
+        return (List<Map<String, Object>>) body;
     }
 
     public void export(Map<String, String> params, HttpServletResponse response) throws IOException {

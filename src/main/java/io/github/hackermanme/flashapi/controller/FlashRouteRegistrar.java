@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
@@ -29,6 +30,7 @@ public final class FlashRouteRegistrar {
     private final GenericCrudService crudService;
     private final ServiceResolver serviceResolver;
     private final ExportHandler exportHandler;
+    private final BulkHandler bulkHandler;
     private final String basePath;
     private final Set<String> existingMappings;
 
@@ -36,11 +38,13 @@ public final class FlashRouteRegistrar {
                                GenericCrudService crudService,
                                ServiceResolver serviceResolver,
                                ExportHandler exportHandler,
+                               BulkHandler bulkHandler,
                                String basePath) {
         this.handlerMapping = handlerMapping;
         this.crudService = crudService;
         this.serviceResolver = serviceResolver;
         this.exportHandler = exportHandler;
+        this.bulkHandler = bulkHandler;
         this.basePath = normalizePath(basePath);
         this.existingMappings = snapshotExistingMappings();
     }
@@ -48,7 +52,7 @@ public final class FlashRouteRegistrar {
     public void registerAll(List<EntityMetadata> entities) {
         for (EntityMetadata meta : entities) {
             FlashCrudOperations<Object, Object> custom = serviceResolver.resolve(meta);
-            FlashController controller = new FlashController(meta, crudService, custom, exportHandler);
+            FlashController controller = new FlashController(meta, crudService, custom, exportHandler, bulkHandler);
             registerEntity(meta, controller);
         }
     }
@@ -82,6 +86,15 @@ public final class FlashRouteRegistrar {
             if (meta.isOperationAllowed(CrudOperation.LIST)) {
                 register(collectionPath + "/export", RequestMethod.GET, controller, "export");
             }
+            if (meta.isOperationAllowed(CrudOperation.CREATE)) {
+                registerBulk(collectionPath + "/bulk", RequestMethod.POST, controller, "bulkCreate");
+            }
+            if (meta.isOperationAllowed(CrudOperation.UPDATE)) {
+                registerBulk(collectionPath + "/bulk", RequestMethod.PUT, controller, "bulkUpdate");
+            }
+            if (meta.isOperationAllowed(CrudOperation.DELETE)) {
+                registerBulk(collectionPath + "/bulk", RequestMethod.DELETE, controller, "bulkDelete");
+            }
             log.info("FlashAPI: routes registered for {} at {}", meta.entityName(), collectionPath);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException("FlashAPI internal error: missing handler method", e);
@@ -108,6 +121,28 @@ public final class FlashRouteRegistrar {
                 jakarta.servlet.http.HttpServletRequest.class,
                 jakarta.servlet.http.HttpServletResponse.class,
                 java.util.Map.class, java.util.Map.class);
+
+        handlerMapping.registerMapping(info, handler, handleMethod);
+    }
+
+    private void registerBulk(String path, RequestMethod method,
+                              FlashController controller, String handlerMethodName)
+            throws NoSuchMethodException {
+
+        String mappingKey = method.name() + " " + path;
+        if (isAlreadyMapped(path, method)) {
+            log.debug("FlashAPI: skipping {} — already mapped by user", mappingKey);
+            return;
+        }
+
+        RequestMappingInfo info = RequestMappingInfo
+                .paths(path)
+                .methods(method)
+                .build();
+
+        var handler = new FlashBulkEndpointHandler(controller, handlerMethodName);
+        var handleMethod = FlashBulkEndpointHandler.class.getMethod("handle",
+                jakarta.servlet.http.HttpServletRequest.class, Object.class);
 
         handlerMapping.registerMapping(info, handler, handleMethod);
     }

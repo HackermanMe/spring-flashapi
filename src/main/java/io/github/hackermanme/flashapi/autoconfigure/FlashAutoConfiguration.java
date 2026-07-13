@@ -2,6 +2,7 @@ package io.github.hackermanme.flashapi.autoconfigure;
 
 import io.github.hackermanme.flashapi.annotation.EnableFlashApi;
 import io.github.hackermanme.flashapi.audit.AuditService;
+import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.controller.FlashRouteRegistrar;
 import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
@@ -83,6 +84,12 @@ public class FlashAutoConfiguration {
                 properties.getExport().getReportsPath());
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public BulkHandler flashBulkHandler(GenericCrudService crudService) {
+        return new BulkHandler(crudService, properties.getBulk().getMaxItems());
+    }
+
     @EventListener(ContextRefreshedEvent.class)
     public void onApplicationReady() {
         String[] basePackages = resolveBasePackages();
@@ -100,8 +107,10 @@ public class FlashAutoConfiguration {
         GenericCrudService crudService = context.getBean(GenericCrudService.class);
         ServiceResolver serviceResolver = context.getBean(ServiceResolver.class);
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
+        BulkHandler bulkHandler = context.getBean(BulkHandler.class);
         FlashRouteRegistrar registrar = new FlashRouteRegistrar(
-                handlerMapping, crudService, serviceResolver, exportHandler, properties.getBasePath());
+                handlerMapping, crudService, serviceResolver, exportHandler, bulkHandler,
+                properties.getBasePath());
         registrar.registerAll(entities);
 
         log.info("FlashAPI: {} entities registered, endpoints available at {}/",

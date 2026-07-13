@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.exception;
 
+import io.github.hackermanme.flashapi.bulk.BulkLimitExceededException;
 import io.github.hackermanme.flashapi.export.ExportUnavailableException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -47,6 +48,14 @@ public class FlashExceptionHandler {
         body.put("status", 400);
         body.put("error", ex.getMessage());
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(BulkLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleBulkLimit(BulkLimitExceededException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", 413);
+        body.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(body);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
