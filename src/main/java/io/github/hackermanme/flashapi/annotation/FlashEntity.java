@@ -48,4 +48,19 @@ public @interface FlashEntity {
      * Cache TTL in seconds. Only used if cache=true.
      */
     int cacheTtl() default 300;
+
+    /**
+     * Enable rate limiting for this entity's endpoints.
+     */
+    boolean rateLimit() default false;
+
+    /**
+     * Maximum requests per window per client IP. Only used if rateLimit=true.
+     */
+    int rateLimitRequests() default 100;
+
+    /**
+     * Rate limit window in seconds. Only used if rateLimit=true.
+     */
+    int rateLimitWindow() default 60;
 }

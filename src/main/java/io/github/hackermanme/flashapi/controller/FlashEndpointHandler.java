@@ -1,7 +1,9 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,10 +20,12 @@ public final class FlashEndpointHandler {
 
     private final FlashController controller;
     private final String operation;
+    private final FlashRateLimiter rateLimiter;
 
-    public FlashEndpointHandler(FlashController controller, String operation) {
+    public FlashEndpointHandler(FlashController controller, String operation, FlashRateLimiter rateLimiter) {
         this.controller = controller;
         this.operation = operation;
+        this.rateLimiter = rateLimiter;
     }
 
     public ResponseEntity<?> handle(
@@ -29,6 +33,12 @@ public final class FlashEndpointHandler {
             HttpServletResponse response,
             @RequestParam(required = false) Map<String, String> params,
             @RequestBody(required = false) Map<String, Object> body) throws IOException {
+
+        if (rateLimiter != null && !rateLimiter.isAllowed(controller.getMetadata(), getClientIp(request))) {
+            response.setIntHeader("Retry-After", controller.getMetadata().rateLimitWindow());
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "Rate limit exceeded", "retryAfter", controller.getMetadata().rateLimitWindow()));
+        }
 
         if ("export".equals(operation)) {
             controller.export(params != null ? params : Map.of(), response);
@@ -45,6 +55,14 @@ public final class FlashEndpointHandler {
             case "history" -> controller.history(extractIdBeforeSegment(request, "history"));
             default -> ResponseEntity.internalServerError().build();
         };
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     private Object extractId(HttpServletRequest request) {
