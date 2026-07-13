@@ -50,10 +50,13 @@ DELETE /api/products/bulk                — batch delete
 - **Zero boilerplate** — annotate your entity, get a full CRUD API
 - **Progressive disclosure** — FlashAPI recedes as you define your own services or controllers
 - **Dynamic filtering** — `?price.gte=100&name.contains=phone` with 11 operators
+- **Full-text search** — `?search=laptop` across all String fields
 - **Pagination & sorting** — `?page=0&size=20&sort=name,asc`
 - **Export** — CSV, Excel, and PDF with one query param (`?format=csv`)
 - **Bulk operations** — batch create, update, delete with per-item error reporting
 - **Relations & expand** — `?expand=category,tags` to include related entities
+- **Intelligent caching** — transparent response caching with auto-invalidation on writes
+- **Rate limiting** — per-IP token bucket, configurable per entity
 - **Soft delete** — timestamp-based with restore endpoint
 - **Audit trail** — who changed what, when, with field-level diffs
 - **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`
@@ -136,6 +139,20 @@ public class ProductService implements FlashCrudOperations<Product, Long> {
     }
     // ...
 }
+```
+
+## Search
+
+All list endpoints support full-text search across String fields:
+
+```
+GET /api/products?search=laptop
+```
+
+Combine with filters, sort, and pagination:
+
+```
+GET /api/products?search=pro&price.gte=500&sort=name,asc&page=0&size=10
 ```
 
 ## Filtering
@@ -227,6 +244,9 @@ flashapi:
 | [Export](docs/export.md) | CSV, Excel, and PDF export |
 | [Bulk Operations](docs/bulk.md) | Batch create, update, delete |
 | [Relations & Expand](docs/relations.md) | Include related entities in responses |
+| [Cache](docs/cache.md) | Intelligent response caching |
+| [Rate Limiting](docs/rate-limiting.md) | Per-IP rate limiting |
+| [Search](docs/search.md) | Full-text search across fields |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |
 | [Configuration](docs/configuration.md) | All available properties |

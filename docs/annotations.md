@@ -30,8 +30,11 @@ This generates: `GET/POST /products`, `GET/PUT/DELETE /products/{id}`
 | `only` | String[] | `{}` | Only allow these operations |
 | `readonly` | boolean | `false` | Shortcut for `only = {"LIST", "READ"}` |
 | `softDelete` | boolean | `false` | Use soft delete instead of hard delete |
-| `cache` | boolean | `false` | Enable response caching |
-| `cacheTtl` | int | `60` | Cache TTL in seconds |
+| `cache` | boolean | `false` | Enable response caching ([details](cache.md)) |
+| `cacheTtl` | int | `300` | Cache TTL in seconds |
+| `rateLimit` | boolean | `false` | Enable per-IP rate limiting ([details](rate-limiting.md)) |
+| `rateLimitRequests` | int | `100` | Max requests per window per IP |
+| `rateLimitWindow` | int | `60` | Rate limit window in seconds |
 
 **Path auto-pluralization rules:**
 - `Product` → `products`
