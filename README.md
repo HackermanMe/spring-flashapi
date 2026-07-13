@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/HackermanMe/spring-flashapi/actions"><img src="https://img.shields.io/github/actions/workflow/status/HackermanMe/spring-flashapi/ci.yml?branch=main&style=flat-square&logo=github" alt="CI"></a>
-  <a href="https://github.com/HackermanMe/spring-flashapi/blob/main/LICENSE"><img src="https://img.shields.io/github/license/HackermanMe/spring-flashapi?style=flat-square" alt="License"></a>
+  <a href="https://github.com/HackermanMe/spring-flashapi/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/Java-17%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java 17+">
   <img src="https://img.shields.io/badge/Spring%20Boot-3.2%2B-6DB33F?style=flat-square&logo=springboot&logoColor=white" alt="Spring Boot 3.2+">
 </p>
@@ -252,4 +252,4 @@ Contributions are welcome! Please open an issue first to discuss what you'd like
 
 ## License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)
