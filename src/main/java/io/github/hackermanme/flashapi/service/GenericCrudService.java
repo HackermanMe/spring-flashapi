@@ -36,12 +36,13 @@ public class GenericCrudService {
     public Page<Object> list(EntityMetadata meta, Pageable pageable, Map<String, String> filters) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         boolean showDeleted = "true".equalsIgnoreCase(filters.remove("deleted"));
+        String searchTerm = filters.remove("search");
 
         // Count
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<?> countRoot = countQuery.from(meta.entityClass());
         countQuery.select(cb.count(countRoot));
-        List<Predicate> countPreds = buildPredicates(cb, countRoot, meta, filters, showDeleted);
+        List<Predicate> countPreds = buildPredicates(cb, countRoot, meta, filters, showDeleted, searchTerm);
         if (!countPreds.isEmpty()) countQuery.where(countPreds.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -49,7 +50,7 @@ public class GenericCrudService {
         CriteriaQuery<Object> dataQuery = cb.createQuery(Object.class);
         Root<?> root = dataQuery.from(meta.entityClass());
         dataQuery.select(root);
-        List<Predicate> preds = buildPredicates(cb, root, meta, filters, showDeleted);
+        List<Predicate> preds = buildPredicates(cb, root, meta, filters, showDeleted, searchTerm);
         if (!preds.isEmpty()) dataQuery.where(preds.toArray(Predicate[]::new));
 
         if (pageable.getSort().isSorted()) {
@@ -132,7 +133,7 @@ public class GenericCrudService {
 
     private List<Predicate> buildPredicates(CriteriaBuilder cb, Root<?> root,
                                             EntityMetadata meta, Map<String, String> filters,
-                                            boolean showDeleted) {
+                                            boolean showDeleted, String searchTerm) {
         List<Predicate> predicates = new ArrayList<>();
 
         // Soft delete filter
@@ -140,6 +141,20 @@ public class GenericCrudService {
             predicates.add(showDeleted
                     ? softDeleteHandler.onlyDeleted(cb, root)
                     : softDeleteHandler.notDeleted(cb, root));
+        }
+
+        // Full-text search across all String fields
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            String pattern = "%" + searchTerm.toLowerCase() + "%";
+            List<Predicate> searchPredicates = new ArrayList<>();
+            for (FieldMetadata field : meta.fields()) {
+                if (field.type() == String.class) {
+                    searchPredicates.add(cb.like(cb.lower(root.get(field.name())), pattern));
+                }
+            }
+            if (!searchPredicates.isEmpty()) {
+                predicates.add(cb.or(searchPredicates.toArray(Predicate[]::new)));
+            }
         }
 
         Map<String, FieldMetadata> fieldMap = meta.fieldsByName();
