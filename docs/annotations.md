@@ -61,6 +61,33 @@ public class Order {
 | `enabled` | boolean | `true` | Enable/disable audit for this entity |
 | `trackFields` | boolean | `false` | Track field-level changes (old value → new value) |
 
+### `@FlashSecured`
+
+Restricts access to auto-generated endpoints by role. Requires Spring Security on the classpath.
+
+```java
+@Entity
+@FlashEntity
+@FlashSecured(read = "USER", write = "EDITOR", delete = "ADMIN")
+public class Article { ... }
+```
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `roles` | String[] | `{}` | Required for ALL operations (fallback) |
+| `read` | String[] | `{}` | Required for LIST and GET by ID |
+| `write` | String[] | `{}` | Required for CREATE, UPDATE, DELETE |
+| `create` | String[] | `{}` | Required for POST (overrides write) |
+| `update` | String[] | `{}` | Required for PUT (overrides write) |
+| `delete` | String[] | `{}` | Required for DELETE (overrides write) |
+| `list` | String[] | `{}` | Required for GET collection (overrides read) |
+
+Resolution priority: specific operation > write/read group > roles > "authenticated".
+
+Special values: `"permitAll"` (public), `"authenticated"` (any logged-in user).
+
+See [Security](security.md) for full details and examples.
+
 ### `@EnableFlashApi`
 
 Activates FlashAPI in your Spring Boot application. Place on your main class.
