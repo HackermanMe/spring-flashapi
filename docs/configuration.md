@@ -29,6 +29,11 @@ flashapi:
     max-depth: 1
   tenant:
     header-name: X-Tenant-Id
+  webhook:
+    urls:
+      - https://hooks.example.com/flashapi
+    max-retries: 3
+    timeout-seconds: 10
   openapi:
     enabled: true
     title: FlashAPI
@@ -51,6 +56,9 @@ flashapi.export.reports-path=flashapi/reports
 flashapi.bulk.max-items=100
 flashapi.relations.max-depth=1
 flashapi.tenant.header-name=X-Tenant-Id
+flashapi.webhook.urls[0]=https://hooks.example.com/flashapi
+flashapi.webhook.max-retries=3
+flashapi.webhook.timeout-seconds=10
 flashapi.openapi.enabled=true
 flashapi.openapi.title=FlashAPI
 flashapi.openapi.version=1.0.0
@@ -107,6 +115,14 @@ flashapi.openapi.docs-path=/api/docs
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `flashapi.tenant.header-name` | String | `X-Tenant-Id` | HTTP header used to resolve the current tenant |
+
+### Webhook
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `flashapi.webhook.urls` | List<String> | `[]` | URLs to POST webhook events to |
+| `flashapi.webhook.max-retries` | int | `3` | Max retry attempts per delivery |
+| `flashapi.webhook.timeout-seconds` | int | `10` | HTTP timeout per attempt in seconds |
 
 ### OpenAPI
 

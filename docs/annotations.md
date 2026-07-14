@@ -61,6 +61,23 @@ public class Order {
 | `enabled` | boolean | `true` | Enable/disable audit for this entity |
 | `trackFields` | boolean | `false` | Track field-level changes (old value → new value) |
 
+### `@FlashWebhook`
+
+Fires HTTP POST notifications to configured URLs on data changes.
+
+```java
+@Entity
+@FlashEntity
+@FlashWebhook(events = {"CREATE", "DELETE"})
+public class Payment { ... }
+```
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `events` | String[] | `{"CREATE", "UPDATE", "DELETE"}` | Events that trigger notifications |
+
+Configure receiver URLs via `flashapi.webhook.urls`. See [Webhooks](webhooks.md) for full details.
+
 ### `@FlashMultiTenant`
 
 Enables automatic data isolation per tenant. All queries are filtered, creates are auto-tagged.

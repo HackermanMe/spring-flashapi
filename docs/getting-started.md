@@ -546,6 +546,7 @@ java {
 - [Progressive Disclosure](progressive-disclosure.md) -- detailed override patterns
 - [Security](security.md) -- @FlashSecured role-based authorization
 - [Multi-Tenancy](multi-tenancy.md) -- automatic data isolation per tenant
+- [Webhooks](webhooks.md) -- event notifications on data changes
 - [Soft Delete](soft-delete.md) -- logical deletion with automatic filtering
 - [Audit Trail](audit.md) -- tracking who changed what and when
 - [Filtering & Search](search.md) -- advanced query capabilities
