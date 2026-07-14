@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://github.com/HackermanMe/spring-flashapi/actions"><img src="https://img.shields.io/github/actions/workflow/status/HackermanMe/spring-flashapi/ci.yml?branch=main&style=flat-square&logo=github" alt="CI"></a>
   <a href="https://github.com/HackermanMe/spring-flashapi/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License"></a>
-  <img src="https://img.shields.io/badge/Java-17%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java 17+">
+  <img src="https://img.shields.io/badge/Java-21%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java 21+">
   <img src="https://img.shields.io/badge/Spring%20Boot-3.2%2B-6DB33F?style=flat-square&logo=springboot&logoColor=white" alt="Spring Boot 3.2+">
 </p>
 
@@ -219,6 +219,10 @@ flashapi:
 
 ## Configuration
 
+Use `application.yml` or `application.properties` — both work identically.
+
+**application.yml:**
+
 ```yaml
 flashapi:
   base-path: /api
@@ -233,6 +237,19 @@ flashapi:
     reports-path: flashapi/reports
   bulk:
     max-items: 100
+```
+
+**application.properties:**
+
+```properties
+flashapi.base-path=/api
+flashapi.default-page-size=20
+flashapi.max-page-size=100
+flashapi.audit.enabled=true
+flashapi.soft-delete.column-name=deletedAt
+flashapi.export.max-rows=0
+flashapi.export.reports-path=flashapi/reports
+flashapi.bulk.max-items=100
 ```
 
 ## Documentation
@@ -256,7 +273,7 @@ flashapi:
 
 ## Requirements
 
-- Java 17+
+- Java 21+
 - Spring Boot 3.2+
 - Spring Data JPA (Hibernate or any JPA provider)
 
