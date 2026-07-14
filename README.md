@@ -266,6 +266,7 @@ flashapi.bulk.max-items=100
 | [Rate Limiting](docs/rate-limiting.md) | Per-IP rate limiting |
 | [Search](docs/search.md) | Full-text search across fields |
 | [OpenAPI](docs/openapi.md) | Auto-generated Swagger UI & spec |
+| [Cookbook](docs/cookbook.md) | CORS, security, Docker, monitoring, recipes |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |
 | [Configuration](docs/configuration.md) | All available properties |
