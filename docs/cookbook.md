@@ -241,8 +241,8 @@ spring.jpa.hibernate.ddl-auto=validate
 CREATE INDEX idx_products_deleted_at ON products(deleted_at) WHERE deleted_at IS NULL;
 
 -- For audit queries
-CREATE INDEX idx_audit_entity ON flash_audit_entry(entity_type, entity_id);
-CREATE INDEX idx_audit_timestamp ON flash_audit_entry(timestamp DESC);
+CREATE INDEX idx_audit_entity ON flash_audit_log(entity_type, entity_id);
+CREATE INDEX idx_audit_timestamp ON flash_audit_log(timestamp DESC);
 
 -- For search (trigram extension)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

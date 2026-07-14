@@ -238,9 +238,9 @@ flashapi:
   max-page-size: 100       # Maximum allowed page size (default: 100)
   audit:
     enabled: true          # Global audit toggle (default: true)
-    table-name: flash_audit_entry  # Audit table name
+    table-name: flash_audit_log  # Audit table name
   soft-delete:
-    column-name: deletedAt # Soft delete timestamp column (default: deletedAt)
+    column-name: deleted_at # Soft delete timestamp field (default: deleted_at)
 ```
 
 ### application.properties
@@ -250,8 +250,8 @@ flashapi.base-path=/api
 flashapi.default-page-size=20
 flashapi.max-page-size=100
 flashapi.audit.enabled=true
-flashapi.audit.table-name=flash_audit_entry
-flashapi.soft-delete.column-name=deletedAt
+flashapi.audit.table-name=flash_audit_log
+flashapi.soft-delete.column-name=deleted_at
 ```
 
 See [Configuration Reference](configuration.md) for the complete list of properties.

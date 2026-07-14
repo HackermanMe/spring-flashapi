@@ -231,7 +231,7 @@ flashapi:
   audit:
     enabled: true
   soft-delete:
-    column-name: deletedAt
+    column-name: deleted_at
   export:
     max-rows: 0
     reports-path: flashapi/reports
@@ -246,7 +246,7 @@ flashapi.base-path=/api
 flashapi.default-page-size=20
 flashapi.max-page-size=100
 flashapi.audit.enabled=true
-flashapi.soft-delete.column-name=deletedAt
+flashapi.soft-delete.column-name=deleted_at
 flashapi.export.max-rows=0
 flashapi.export.reports-path=flashapi/reports
 flashapi.bulk.max-items=100
