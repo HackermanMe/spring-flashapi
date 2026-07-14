@@ -361,58 +361,56 @@ public class SecurityConfig {
 }
 ```
 
-### Simple API key filter (no Spring Security)
+### JWT with Spring Security (stateless API)
+
+For REST APIs, JWT is the standard. Add `spring-boot-starter-oauth2-resource-server`:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
+```
 
 ```java
-@Component
-@Order(1)
-public class ApiKeyFilter extends OncePerRequestFilter {
+@Configuration
+@EnableWebSecurity
+public class JwtSecurityConfig {
 
-    @Value("${flashapi.api-key:}")
-    private String apiKey;
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                     HttpServletResponse response,
-                                     FilterChain chain) throws ServletException, IOException {
-        if (apiKey.isEmpty() || request.getMethod().equals("GET")) {
-            chain.doFilter(request, response);
-            return;
-        }
-
-        String provided = request.getHeader("X-API-Key");
-        if (!apiKey.equals(provided)) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
-            return;
-        }
-        chain.doFilter(request, response);
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/");
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                        .requestMatchers("/api/docs/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .build();
     }
 }
+```
+
+**application.yml:**
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.myapp.com/realms/myrealm
 ```
 
 **application.properties:**
 
 ```properties
-flashapi.api-key=my-secret-key-here
+spring.security.oauth2.resourceserver.jwt.issuer-uri=https://auth.myapp.com/realms/myrealm
 ```
 
-Usage:
-
-```bash
-# This works (GET is public)
-curl http://localhost:8080/api/products
-
-# This requires the key
-curl -X POST http://localhost:8080/api/products \
-  -H "X-API-Key: my-secret-key-here" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Test"}'
-```
+Works with Keycloak, Auth0, Firebase Auth, AWS Cognito, or any OIDC provider.
 
 ---
 
