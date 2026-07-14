@@ -1,5 +1,8 @@
 package io.github.hackermanme.flashapi.autoconfigure;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -19,6 +22,7 @@ public class FlashProperties {
     private RelationProperties relations = new RelationProperties();
     private OpenApiProperties openapi = new OpenApiProperties();
     private TenantProperties tenant = new TenantProperties();
+    private WebhookProperties webhook = new WebhookProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -49,6 +53,9 @@ public class FlashProperties {
 
     public TenantProperties getTenant() { return tenant; }
     public void setTenant(TenantProperties tenant) { this.tenant = tenant; }
+
+    public WebhookProperties getWebhook() { return webhook; }
+    public void setWebhook(WebhookProperties webhook) { this.webhook = webhook; }
 
     public static class BulkProperties {
         private int maxItems = 100;
@@ -98,6 +105,21 @@ public class FlashProperties {
 
         public String getHeaderName() { return headerName; }
         public void setHeaderName(String headerName) { this.headerName = headerName; }
+    }
+
+    public static class WebhookProperties {
+        private List<String> urls = new ArrayList<>();
+        private int maxRetries = 3;
+        private int timeoutSeconds = 10;
+
+        public List<String> getUrls() { return urls; }
+        public void setUrls(List<String> urls) { this.urls = urls; }
+
+        public int getMaxRetries() { return maxRetries; }
+        public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+
+        public int getTimeoutSeconds() { return timeoutSeconds; }
+        public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
     }
 
     public static class OpenApiProperties {

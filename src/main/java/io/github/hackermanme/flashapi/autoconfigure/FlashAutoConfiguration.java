@@ -21,6 +21,7 @@ import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
 import io.github.hackermanme.flashapi.tenant.HeaderTenantResolver;
 import io.github.hackermanme.flashapi.tenant.TenantHandler;
 import io.github.hackermanme.flashapi.tenant.TenantResolver;
+import io.github.hackermanme.flashapi.webhook.WebhookDispatcher;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,9 +86,18 @@ public class FlashAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public WebhookDispatcher flashWebhookDispatcher() {
+        return new WebhookDispatcher(
+                properties.getWebhook().getUrls(),
+                properties.getWebhook().getMaxRetries(),
+                properties.getWebhook().getTimeoutSeconds());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public GenericCrudService flashCrudService(AuditService auditService, SoftDeleteHandler softDeleteHandler,
-                                              TenantHandler tenantHandler) {
-        return new GenericCrudService(entityManager, auditService, softDeleteHandler, tenantHandler);
+                                              TenantHandler tenantHandler, WebhookDispatcher webhookDispatcher) {
+        return new GenericCrudService(entityManager, auditService, softDeleteHandler, tenantHandler, webhookDispatcher);
     }
 
     @Bean

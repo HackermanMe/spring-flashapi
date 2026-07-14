@@ -5,6 +5,7 @@ import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
 import io.github.hackermanme.flashapi.tenant.TenantHandler;
+import io.github.hackermanme.flashapi.webhook.WebhookDispatcher;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
@@ -26,13 +27,16 @@ public class GenericCrudService {
     private final AuditService auditService;
     private final SoftDeleteHandler softDeleteHandler;
     private final TenantHandler tenantHandler;
+    private final WebhookDispatcher webhookDispatcher;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
-                              SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler) {
+                              SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler,
+                              WebhookDispatcher webhookDispatcher) {
         this.entityManager = entityManager;
         this.auditService = auditService;
         this.softDeleteHandler = softDeleteHandler;
         this.tenantHandler = tenantHandler;
+        this.webhookDispatcher = webhookDispatcher;
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +94,7 @@ public class GenericCrudService {
         entityManager.persist(instance);
         entityManager.flush();
         auditService.logCreate(meta, instance);
+        webhookDispatcher.dispatch(meta, "CREATE", instance);
         return instance;
     }
 
@@ -112,6 +117,7 @@ public class GenericCrudService {
             auditService.logUpdate(meta, null, merged);
         }
 
+        webhookDispatcher.dispatch(meta, "UPDATE", merged);
         return Optional.of(merged);
     }
 
@@ -122,10 +128,13 @@ public class GenericCrudService {
         if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return false;
 
         if (meta.softDelete()) {
-            return softDeleteHandler.softDelete(meta, id);
+            boolean deleted = softDeleteHandler.softDelete(meta, id);
+            if (deleted) webhookDispatcher.dispatch(meta, "DELETE", instance);
+            return deleted;
         }
 
         auditService.logDelete(meta, instance);
+        webhookDispatcher.dispatch(meta, "DELETE", instance);
         entityManager.remove(instance);
         entityManager.flush();
         return true;
