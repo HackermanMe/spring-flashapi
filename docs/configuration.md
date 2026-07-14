@@ -27,6 +27,8 @@ flashapi:
     max-items: 100
   relations:
     max-depth: 1
+  tenant:
+    header-name: X-Tenant-Id
   openapi:
     enabled: true
     title: FlashAPI
@@ -48,6 +50,7 @@ flashapi.export.max-rows=0
 flashapi.export.reports-path=flashapi/reports
 flashapi.bulk.max-items=100
 flashapi.relations.max-depth=1
+flashapi.tenant.header-name=X-Tenant-Id
 flashapi.openapi.enabled=true
 flashapi.openapi.title=FlashAPI
 flashapi.openapi.version=1.0.0
@@ -98,6 +101,12 @@ flashapi.openapi.docs-path=/api/docs
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `flashapi.relations.max-depth` | int | `1` | Maximum depth for `?expand` recursion. `1` = direct relations only. |
+
+### Tenant
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `flashapi.tenant.header-name` | String | `X-Tenant-Id` | HTTP header used to resolve the current tenant |
 
 ### OpenAPI
 

@@ -63,6 +63,7 @@ DELETE /api/products/bulk                — batch delete
 - **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`
 - **Custom services** — implement `FlashCrudOperations<T, ID>` to add business logic
 - **Authorization** — `@FlashSecured` for role-based endpoint access control
+- **Multi-tenancy** — `@FlashMultiTenant` for automatic data isolation per tenant
 - **Spring Security aware** — audit resolves current user automatically
 - **Type-safe IDs** — supports Long, Integer, UUID, String
 
@@ -268,6 +269,7 @@ flashapi.bulk.max-items=100
 | [Search](docs/search.md) | Full-text search across fields |
 | [OpenAPI](docs/openapi.md) | Auto-generated Swagger UI & spec |
 | [Security](docs/security.md) | @FlashSecured role-based authorization |
+| [Multi-Tenancy](docs/multi-tenancy.md) | Automatic data isolation per tenant |
 | [Cookbook](docs/cookbook.md) | CORS, security, Docker, monitoring, recipes |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |

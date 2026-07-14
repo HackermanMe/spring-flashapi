@@ -61,6 +61,26 @@ public class Order {
 | `enabled` | boolean | `true` | Enable/disable audit for this entity |
 | `trackFields` | boolean | `false` | Track field-level changes (old value → new value) |
 
+### `@FlashMultiTenant`
+
+Enables automatic data isolation per tenant. All queries are filtered, creates are auto-tagged.
+
+```java
+@Entity
+@FlashEntity
+@FlashMultiTenant(field = "tenantId")
+public class Document {
+    private String tenantId;  // managed by FlashAPI
+    ...
+}
+```
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `field` | String | `"tenantId"` | Java field name storing the tenant identifier |
+
+Tenant is resolved from HTTP header `X-Tenant-Id` by default (configurable). See [Multi-Tenancy](multi-tenancy.md) for full details.
+
 ### `@FlashSecured`
 
 Restricts access to auto-generated endpoints by role. Requires Spring Security on the classpath.

@@ -545,6 +545,7 @@ java {
 - [Annotations Reference](annotations.md) -- full list of annotations and their behavior
 - [Progressive Disclosure](progressive-disclosure.md) -- detailed override patterns
 - [Security](security.md) -- @FlashSecured role-based authorization
+- [Multi-Tenancy](multi-tenancy.md) -- automatic data isolation per tenant
 - [Soft Delete](soft-delete.md) -- logical deletion with automatic filtering
 - [Audit Trail](audit.md) -- tracking who changed what and when
 - [Filtering & Search](search.md) -- advanced query capabilities
