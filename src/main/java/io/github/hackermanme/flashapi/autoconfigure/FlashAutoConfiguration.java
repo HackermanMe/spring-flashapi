@@ -1,6 +1,7 @@
 package io.github.hackermanme.flashapi.autoconfigure;
 
 import io.github.hackermanme.flashapi.annotation.EnableFlashApi;
+import io.github.hackermanme.flashapi.annotation.FlashSecured;
 import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.cache.FlashCacheManager;
@@ -13,6 +14,7 @@ import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.EntityScanner;
 import io.github.hackermanme.flashapi.relation.RelationExpander;
+import io.github.hackermanme.flashapi.security.SecurityEvaluator;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
 import io.github.hackermanme.flashapi.service.ServiceResolver;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
@@ -121,6 +123,12 @@ public class FlashAutoConfiguration {
         return new FlashRateLimiter();
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public SecurityEvaluator flashSecurityEvaluator() {
+        return new SecurityEvaluator();
+    }
+
     @EventListener(ContextRefreshedEvent.class)
     public void onApplicationReady() {
         String[] basePackages = resolveBasePackages();
@@ -135,6 +143,8 @@ public class FlashAutoConfiguration {
             return;
         }
 
+        validateSecuritySetup(entities);
+
         GenericCrudService crudService = context.getBean(GenericCrudService.class);
         ServiceResolver serviceResolver = context.getBean(ServiceResolver.class);
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
@@ -142,9 +152,10 @@ public class FlashAutoConfiguration {
         RelationExpander relationExpander = context.getBean(RelationExpander.class);
         FlashCacheManager cacheManager = context.getBean(FlashCacheManager.class);
         FlashRateLimiter rateLimiter = context.getBean(FlashRateLimiter.class);
+        SecurityEvaluator securityEvaluator = context.getBean(SecurityEvaluator.class);
         FlashRouteRegistrar registrar = new FlashRouteRegistrar(
                 handlerMapping, crudService, serviceResolver, exportHandler, bulkHandler,
-                relationExpander, cacheManager, rateLimiter, properties.getBasePath());
+                relationExpander, cacheManager, rateLimiter, securityEvaluator, properties.getBasePath());
         registrar.registerAll(entities);
 
         log.info("FlashAPI: {} entities registered, endpoints available at {}/",
@@ -152,6 +163,20 @@ public class FlashAutoConfiguration {
 
         if (properties.getOpenapi().isEnabled()) {
             registerOpenApiRoutes(entities);
+        }
+    }
+
+    private void validateSecuritySetup(List<EntityMetadata> entities) {
+        boolean anySecured = entities.stream()
+                .anyMatch(e -> e.entityClass().isAnnotationPresent(FlashSecured.class));
+        if (!anySecured) return;
+
+        try {
+            Class.forName("org.springframework.security.core.context.SecurityContextHolder");
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    "FlashAPI: @FlashSecured is used but Spring Security is not on the classpath. " +
+                    "Add spring-boot-starter-security to your dependencies.");
         }
     }
 

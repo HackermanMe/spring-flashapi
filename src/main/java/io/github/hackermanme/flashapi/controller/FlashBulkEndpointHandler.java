@@ -1,6 +1,9 @@
 package io.github.hackermanme.flashapi.controller;
 
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
+import io.github.hackermanme.flashapi.registry.CrudOperation;
+import io.github.hackermanme.flashapi.security.SecurityEvaluator;
+import io.github.hackermanme.flashapi.security.SecurityResult;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,16 +16,34 @@ public final class FlashBulkEndpointHandler {
     private final FlashController controller;
     private final String operation;
     private final FlashRateLimiter rateLimiter;
+    private final SecurityEvaluator securityEvaluator;
 
-    public FlashBulkEndpointHandler(FlashController controller, String operation, FlashRateLimiter rateLimiter) {
+    public FlashBulkEndpointHandler(FlashController controller, String operation,
+                                    FlashRateLimiter rateLimiter, SecurityEvaluator securityEvaluator) {
         this.controller = controller;
         this.operation = operation;
         this.rateLimiter = rateLimiter;
+        this.securityEvaluator = securityEvaluator;
     }
 
     public ResponseEntity<?> handle(
             HttpServletRequest request,
             @RequestBody(required = false) Object body) {
+
+        if (securityEvaluator != null) {
+            CrudOperation crudOp = toCrudOperation(operation);
+            if (crudOp != null) {
+                SecurityResult result = securityEvaluator.evaluate(controller.getMetadata(), crudOp);
+                if (result == SecurityResult.UNAUTHENTICATED) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("error", "Authentication required"));
+                }
+                if (result == SecurityResult.FORBIDDEN) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "Access denied"));
+                }
+            }
+        }
 
         if (rateLimiter != null && !rateLimiter.isAllowed(controller.getMetadata(), getClientIp(request))) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
@@ -34,6 +55,15 @@ public final class FlashBulkEndpointHandler {
             case "bulkUpdate" -> controller.bulkUpdate(body);
             case "bulkDelete" -> controller.bulkDelete(body);
             default -> ResponseEntity.internalServerError().build();
+        };
+    }
+
+    private CrudOperation toCrudOperation(String op) {
+        return switch (op) {
+            case "bulkCreate" -> CrudOperation.CREATE;
+            case "bulkUpdate" -> CrudOperation.UPDATE;
+            case "bulkDelete" -> CrudOperation.DELETE;
+            default -> null;
         };
     }
 
