@@ -4,6 +4,8 @@ import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.security.SecurityEvaluator;
 import io.github.hackermanme.flashapi.security.SecurityResult;
+import io.github.hackermanme.flashapi.tenant.TenantContext;
+import io.github.hackermanme.flashapi.tenant.TenantResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -25,13 +27,16 @@ public final class FlashEndpointHandler {
     private final String operation;
     private final FlashRateLimiter rateLimiter;
     private final SecurityEvaluator securityEvaluator;
+    private final TenantResolver tenantResolver;
 
     public FlashEndpointHandler(FlashController controller, String operation,
-                                FlashRateLimiter rateLimiter, SecurityEvaluator securityEvaluator) {
+                                FlashRateLimiter rateLimiter, SecurityEvaluator securityEvaluator,
+                                TenantResolver tenantResolver) {
         this.controller = controller;
         this.operation = operation;
         this.rateLimiter = rateLimiter;
         this.securityEvaluator = securityEvaluator;
+        this.tenantResolver = tenantResolver;
     }
 
     public ResponseEntity<?> handle(
@@ -40,42 +45,56 @@ public final class FlashEndpointHandler {
             @RequestParam(required = false) Map<String, String> params,
             @RequestBody(required = false) Map<String, Object> body) throws IOException {
 
-        if (securityEvaluator != null) {
-            CrudOperation crudOp = toCrudOperation(operation);
-            if (crudOp != null) {
-                SecurityResult result = securityEvaluator.evaluate(controller.getMetadata(), crudOp);
-                if (result == SecurityResult.UNAUTHENTICATED) {
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                            .body(Map.of("error", "Authentication required"));
-                }
-                if (result == SecurityResult.FORBIDDEN) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(Map.of("error", "Access denied"));
-                }
+        if (tenantResolver != null) {
+            String tenantId = tenantResolver.resolve(request);
+            if (tenantId != null) {
+                TenantContext.set(tenantId);
+            } else if (controller.getMetadata().isMultiTenant()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Tenant context required"));
             }
         }
 
-        if (rateLimiter != null && !rateLimiter.isAllowed(controller.getMetadata(), getClientIp(request))) {
-            response.setIntHeader("Retry-After", controller.getMetadata().rateLimitWindow());
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of("error", "Rate limit exceeded", "retryAfter", controller.getMetadata().rateLimitWindow()));
-        }
+        try {
+            if (securityEvaluator != null) {
+                CrudOperation crudOp = toCrudOperation(operation);
+                if (crudOp != null) {
+                    SecurityResult result = securityEvaluator.evaluate(controller.getMetadata(), crudOp);
+                    if (result == SecurityResult.UNAUTHENTICATED) {
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                .body(Map.of("error", "Authentication required"));
+                    }
+                    if (result == SecurityResult.FORBIDDEN) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(Map.of("error", "Access denied"));
+                    }
+                }
+            }
 
-        if ("export".equals(operation)) {
-            controller.export(params != null ? params : Map.of(), response);
-            return null;
-        }
+            if (rateLimiter != null && !rateLimiter.isAllowed(controller.getMetadata(), getClientIp(request))) {
+                response.setIntHeader("Retry-After", controller.getMetadata().rateLimitWindow());
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body(Map.of("error", "Rate limit exceeded", "retryAfter", controller.getMetadata().rateLimitWindow()));
+            }
 
-        return switch (operation) {
-            case "list" -> controller.list(params != null ? params : Map.of());
-            case "getById" -> controller.getById(extractId(request), params);
-            case "create" -> controller.create(body != null ? body : Map.of());
-            case "update" -> controller.update(extractId(request), body != null ? body : Map.of());
-            case "delete" -> controller.delete(extractId(request));
-            case "restore" -> controller.restore(extractIdBeforeSegment(request, "restore"));
-            case "history" -> controller.history(extractIdBeforeSegment(request, "history"));
-            default -> ResponseEntity.internalServerError().build();
-        };
+            if ("export".equals(operation)) {
+                controller.export(params != null ? params : Map.of(), response);
+                return null;
+            }
+
+            return switch (operation) {
+                case "list" -> controller.list(params != null ? params : Map.of());
+                case "getById" -> controller.getById(extractId(request), params);
+                case "create" -> controller.create(body != null ? body : Map.of());
+                case "update" -> controller.update(extractId(request), body != null ? body : Map.of());
+                case "delete" -> controller.delete(extractId(request));
+                case "restore" -> controller.restore(extractIdBeforeSegment(request, "restore"));
+                case "history" -> controller.history(extractIdBeforeSegment(request, "history"));
+                default -> ResponseEntity.internalServerError().build();
+            };
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     private String getClientIp(HttpServletRequest request) {

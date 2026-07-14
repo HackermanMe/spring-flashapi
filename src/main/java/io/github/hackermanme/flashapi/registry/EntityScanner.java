@@ -3,6 +3,7 @@ package io.github.hackermanme.flashapi.registry;
 import io.github.hackermanme.flashapi.annotation.FlashAudit;
 import io.github.hackermanme.flashapi.annotation.FlashEntity;
 import io.github.hackermanme.flashapi.annotation.FlashHidden;
+import io.github.hackermanme.flashapi.annotation.FlashMultiTenant;
 import io.github.hackermanme.flashapi.annotation.FlashReadOnly;
 import io.github.hackermanme.flashapi.annotation.FlashWriteOnly;
 import jakarta.persistence.*;
@@ -58,11 +59,13 @@ public final class EntityScanner {
     private static EntityMetadata buildMetadata(Class<?> clazz) {
         FlashEntity annotation = clazz.getAnnotation(FlashEntity.class);
         FlashAudit auditAnnotation = clazz.getAnnotation(FlashAudit.class);
+        FlashMultiTenant multiTenantAnnotation = clazz.getAnnotation(FlashMultiTenant.class);
 
         String path = annotation.path().isEmpty() ? pluralize(clazz.getSimpleName()) : annotation.path();
         Set<CrudOperation> ops = resolveOperations(annotation);
         boolean auditEnabled = auditAnnotation == null || auditAnnotation.enabled();
         boolean auditTrackFields = auditAnnotation != null && auditAnnotation.trackFields();
+        String tenantField = multiTenantAnnotation != null ? multiTenantAnnotation.field() : null;
 
         List<FieldMetadata> fields = new ArrayList<>();
         List<RelationMetadata> relations = new ArrayList<>();
@@ -101,12 +104,23 @@ public final class EntityScanner {
         Map<String, RelationMetadata> relationsByName = immutableRelations.stream()
                 .collect(Collectors.toUnmodifiableMap(RelationMetadata::name, Function.identity()));
 
+        if (tenantField != null) {
+            boolean hasTenantJavaField = immutableFields.stream()
+                    .anyMatch(f -> f.name().equals(tenantField));
+            if (!hasTenantJavaField) {
+                throw new IllegalStateException(
+                        "@FlashMultiTenant on " + clazz.getName() + " references field '" + tenantField
+                                + "' which does not exist on the entity");
+            }
+        }
+
         return new EntityMetadata(
                 clazz, clazz.getSimpleName(), path,
                 pkField.name(), pkField.type(),
                 annotation.softDelete(), auditEnabled, auditTrackFields,
                 annotation.cache(), annotation.cacheTtl(),
                 annotation.rateLimit(), annotation.rateLimitRequests(), annotation.rateLimitWindow(),
+                tenantField,
                 ops, immutableFields, fieldsByName,
                 creatableFields, updatableFields, visibleFields, pkField,
                 immutableRelations, relationsByName

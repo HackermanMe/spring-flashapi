@@ -4,6 +4,7 @@ import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
+import io.github.hackermanme.flashapi.tenant.TenantHandler;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
@@ -24,12 +25,14 @@ public class GenericCrudService {
     private final EntityManager entityManager;
     private final AuditService auditService;
     private final SoftDeleteHandler softDeleteHandler;
+    private final TenantHandler tenantHandler;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
-                              SoftDeleteHandler softDeleteHandler) {
+                              SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler) {
         this.entityManager = entityManager;
         this.auditService = auditService;
         this.softDeleteHandler = softDeleteHandler;
+        this.tenantHandler = tenantHandler;
     }
 
     @Transactional(readOnly = true)
@@ -71,13 +74,19 @@ public class GenericCrudService {
 
     @Transactional(readOnly = true)
     public Optional<Object> findById(EntityMetadata meta, Object id) {
-        return Optional.ofNullable(entityManager.find(meta.entityClass(), id));
+        Object entity = entityManager.find(meta.entityClass(), id);
+        if (entity != null && !tenantHandler.belongsToCurrentTenant(meta, entity)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(entity);
     }
 
     @Transactional
     public Object create(EntityMetadata meta, Map<String, Object> data) {
+        Map<String, Object> mutableData = new HashMap<>(data);
+        tenantHandler.injectTenant(meta, mutableData);
         Object instance = instantiate(meta);
-        applyFields(instance, meta.creatableFields(), data);
+        applyFields(instance, meta.creatableFields(), mutableData);
         entityManager.persist(instance);
         entityManager.flush();
         auditService.logCreate(meta, instance);
@@ -88,6 +97,7 @@ public class GenericCrudService {
     public Optional<Object> update(EntityMetadata meta, Object id, Map<String, Object> data) {
         Object instance = entityManager.find(meta.entityClass(), id);
         if (instance == null) return Optional.empty();
+        if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return Optional.empty();
 
         // Snapshot before for audit diff
         Map<String, Object> beforeSnapshot = meta.auditTrackFields() ? snapshot(meta, instance) : null;
@@ -107,12 +117,13 @@ public class GenericCrudService {
 
     @Transactional
     public boolean delete(EntityMetadata meta, Object id) {
+        Object instance = entityManager.find(meta.entityClass(), id);
+        if (instance == null) return false;
+        if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return false;
+
         if (meta.softDelete()) {
             return softDeleteHandler.softDelete(meta, id);
         }
-
-        Object instance = entityManager.find(meta.entityClass(), id);
-        if (instance == null) return false;
 
         auditService.logDelete(meta, instance);
         entityManager.remove(instance);
@@ -135,6 +146,12 @@ public class GenericCrudService {
                                             EntityMetadata meta, Map<String, String> filters,
                                             boolean showDeleted, String searchTerm) {
         List<Predicate> predicates = new ArrayList<>();
+
+        // Multi-tenant filter
+        Predicate tenantPred = tenantHandler.tenantPredicate(cb, root, meta);
+        if (tenantPred != null) {
+            predicates.add(tenantPred);
+        }
 
         // Soft delete filter
         if (meta.softDelete()) {

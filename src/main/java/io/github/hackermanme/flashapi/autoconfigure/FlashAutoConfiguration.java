@@ -18,6 +18,9 @@ import io.github.hackermanme.flashapi.security.SecurityEvaluator;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
 import io.github.hackermanme.flashapi.service.ServiceResolver;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
+import io.github.hackermanme.flashapi.tenant.HeaderTenantResolver;
+import io.github.hackermanme.flashapi.tenant.TenantHandler;
+import io.github.hackermanme.flashapi.tenant.TenantResolver;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,8 +73,21 @@ public class FlashAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public GenericCrudService flashCrudService(AuditService auditService, SoftDeleteHandler softDeleteHandler) {
-        return new GenericCrudService(entityManager, auditService, softDeleteHandler);
+    public TenantHandler flashTenantHandler() {
+        return new TenantHandler();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantResolver flashTenantResolver() {
+        return new HeaderTenantResolver(properties.getTenant().getHeaderName());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GenericCrudService flashCrudService(AuditService auditService, SoftDeleteHandler softDeleteHandler,
+                                              TenantHandler tenantHandler) {
+        return new GenericCrudService(entityManager, auditService, softDeleteHandler, tenantHandler);
     }
 
     @Bean
@@ -153,9 +169,11 @@ public class FlashAutoConfiguration {
         FlashCacheManager cacheManager = context.getBean(FlashCacheManager.class);
         FlashRateLimiter rateLimiter = context.getBean(FlashRateLimiter.class);
         SecurityEvaluator securityEvaluator = context.getBean(SecurityEvaluator.class);
+        TenantResolver tenantResolver = context.getBean(TenantResolver.class);
         FlashRouteRegistrar registrar = new FlashRouteRegistrar(
                 handlerMapping, crudService, serviceResolver, exportHandler, bulkHandler,
-                relationExpander, cacheManager, rateLimiter, securityEvaluator, properties.getBasePath());
+                relationExpander, cacheManager, rateLimiter, securityEvaluator, tenantResolver,
+                properties.getBasePath());
         registrar.registerAll(entities);
 
         log.info("FlashAPI: {} entities registered, endpoints available at {}/",

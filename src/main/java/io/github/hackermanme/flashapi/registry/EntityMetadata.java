@@ -22,6 +22,7 @@ public record EntityMetadata(
         boolean rateLimitEnabled,
         int rateLimitRequests,
         int rateLimitWindow,
+        String tenantField,
         Set<CrudOperation> allowedOperations,
         List<FieldMetadata> fields,
         Map<String, FieldMetadata> fieldsByName,
@@ -38,5 +39,9 @@ public record EntityMetadata(
 
     public boolean hasRelations() {
         return relations != null && !relations.isEmpty();
+    }
+
+    public boolean isMultiTenant() {
+        return tenantField != null;
     }
 }

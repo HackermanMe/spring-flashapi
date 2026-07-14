@@ -18,6 +18,7 @@ public class FlashProperties {
     private BulkProperties bulk = new BulkProperties();
     private RelationProperties relations = new RelationProperties();
     private OpenApiProperties openapi = new OpenApiProperties();
+    private TenantProperties tenant = new TenantProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -45,6 +46,9 @@ public class FlashProperties {
 
     public OpenApiProperties getOpenapi() { return openapi; }
     public void setOpenapi(OpenApiProperties openapi) { this.openapi = openapi; }
+
+    public TenantProperties getTenant() { return tenant; }
+    public void setTenant(TenantProperties tenant) { this.tenant = tenant; }
 
     public static class BulkProperties {
         private int maxItems = 100;
@@ -87,6 +91,13 @@ public class FlashProperties {
 
         public String getColumnName() { return columnName; }
         public void setColumnName(String columnName) { this.columnName = columnName; }
+    }
+
+    public static class TenantProperties {
+        private String headerName = "X-Tenant-Id";
+
+        public String getHeaderName() { return headerName; }
+        public void setHeaderName(String headerName) { this.headerName = headerName; }
     }
 
     public static class OpenApiProperties {
