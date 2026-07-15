@@ -240,7 +240,7 @@ flashapi:
     enabled: true          # Global audit toggle (default: true)
     table-name: flash_audit_log  # Audit table name
   soft-delete:
-    column-name: deleted_at # Soft delete timestamp field (default: deleted_at)
+    column-name: deletedAt # Java field name for soft delete (default: deletedAt)
 ```
 
 ### application.properties
@@ -251,7 +251,7 @@ flashapi.default-page-size=20
 flashapi.max-page-size=100
 flashapi.audit.enabled=true
 flashapi.audit.table-name=flash_audit_log
-flashapi.soft-delete.column-name=deleted_at
+flashapi.soft-delete.column-name=deletedAt
 ```
 
 See [Configuration Reference](configuration.md) for the complete list of properties.
@@ -328,6 +328,10 @@ A complete working project with Maven:
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
@@ -367,6 +371,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("io.github.hackermanme:spring-flashapi:1.0.0")
     runtimeOnly("com.h2database:h2")
@@ -378,7 +383,7 @@ dependencies {
 ```java
 package com.example.demo;
 
-import io.github.hackermanme.flashapi.EnableFlashApi;
+import io.github.hackermanme.flashapi.annotation.EnableFlashApi;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -396,7 +401,7 @@ public class DemoApplication {
 ```java
 package com.example.demo;
 
-import io.github.hackermanme.flashapi.FlashEntity;
+import io.github.hackermanme.flashapi.annotation.FlashEntity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 

@@ -92,6 +92,54 @@ curl "http://localhost:8080/api/products?expand=category&page=0&size=10"  # pagi
 
 ---
 
+## Assigning Relations (Write Operations)
+
+Relations are **read-only** in FlashAPI's generated endpoints. Sending a nested object or an ID in a relation field during `POST` or `PUT` is ignored — FlashAPI only writes scalar fields.
+
+### Recommended Pattern: FK field + relation field
+
+To make a relation assignable via the API, add both a scalar FK field (writable) and a relation annotation (read-only for expand):
+
+```java
+@Entity
+@FlashEntity
+public class Product {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    private BigDecimal price;
+
+    @Column(name = "category_id")
+    private Long categoryId;  // writable via POST/PUT
+
+    @ManyToOne
+    @JoinColumn(name = "category_id", insertable = false, updatable = false)
+    private Category category;  // read-only, used for ?expand=category
+}
+```
+
+Now you can assign the category on create/update via the scalar field:
+
+```bash
+curl -X POST http://localhost:8080/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Laptop", "price": 999.99, "categoryId": 1}'
+```
+
+And read the full relation via expand:
+
+```bash
+curl http://localhost:8080/api/products/1?expand=category
+```
+
+### Why this design?
+
+- Relations are complex objects — FlashAPI would need to resolve references, handle cascading, and validate existence. This is logic better handled by a custom service (Level 2).
+- The FK field pattern is explicit, simple, and works with any JPA provider.
+- If you need full control over relation management, override with a custom service.
+
+---
+
 ## Collection Relations
 
 For `@OneToMany` and `@ManyToMany`, the expanded value is an array:

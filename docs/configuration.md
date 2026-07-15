@@ -19,7 +19,7 @@ flashapi:
     enabled: true
     table-name: flash_audit_log
   soft-delete:
-    column-name: deleted_at
+    column-name: deletedAt
   export:
     max-rows: 0
     reports-path: flashapi/reports
@@ -50,7 +50,7 @@ flashapi.default-page-size=20
 flashapi.max-page-size=100
 flashapi.audit.enabled=true
 flashapi.audit.table-name=flash_audit_log
-flashapi.soft-delete.column-name=deleted_at
+flashapi.soft-delete.column-name=deletedAt
 flashapi.export.max-rows=0
 flashapi.export.reports-path=flashapi/reports
 flashapi.bulk.max-items=100
@@ -89,7 +89,7 @@ flashapi.openapi.docs-path=/api/docs
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `flashapi.soft-delete.column-name` | String | `deleted_at` | Field name used for soft delete timestamps |
+| `flashapi.soft-delete.column-name` | String | `deletedAt` | Java field name used for soft delete timestamps (maps to `deleted_at` column in DB) |
 
 ### Export
 

@@ -35,16 +35,16 @@ FlashAPI detects `softDelete = true`, verifies the field exists, and wires the s
 ```yaml
 flashapi:
   soft-delete:
-    column-name: deleted_at   # Java field name to use (default: deleted_at)
+    column-name: deletedAt   # Java field name to use (default: deletedAt)
 ```
 
 ### application.properties
 
 ```properties
-flashapi.soft-delete.column-name=deleted_at
+flashapi.soft-delete.column-name=deletedAt
 ```
 
-The `column-name` value must match the **Java field name** declared in your entity class.
+The `column-name` value must match the **Java field name** declared in your entity class (camelCase, not the SQL column name).
 
 ---
 
@@ -347,8 +347,8 @@ POST /api/{entity-path}/{id}/restore
 
 ## Important Behaviors
 
-- The `deletedAt` field **must** exist on the entity class. If `softDelete = true` but the field is missing, FlashAPI throws a clear error at startup:
-  > `Entity Order has softDelete=true but no field named 'deleted_at'. Add: private Instant deleted_at;`
+- The `deletedAt` field **must** exist on the entity class. If `softDelete = true` but the field is missing, FlashAPI throws a clear error at runtime:
+  > `Entity Order has softDelete=true but no field named 'deletedAt'. Add: private Instant deletedAt;`
 - Soft-deleted entities are excluded from **all** queries by default, including filter queries, search queries, and count operations.
 - Audit trail (if enabled) records soft deletes as `DELETE` actions and restores as `UPDATE` actions.
 - Hard delete is still possible programmatically via `EntityManager.remove()` in a custom service. FlashAPI only intercepts its own endpoints.

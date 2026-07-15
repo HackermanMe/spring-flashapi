@@ -19,6 +19,7 @@ GET /api/{entity}/export?format={csv|xlsx|pdf}
 | **PDF** | Reports, printable documents, branded exports | Use `max-rows`; all data held in memory | JasperReports |
 
 **Rules of thumb:**
+
 - Need it fast with zero setup? **CSV.**
 - End user opens it in Excel/Sheets? **XLSX** (typed cells, no import wizard).
 - Goes to management or gets printed? **PDF.**
@@ -173,6 +174,7 @@ GET /api/products/export?format=csv&name.contains=phone&price.gte=100&sort=price
 ```
 
 The export respects:
+
 - All filter operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `startswith`, `endswith`, `isnull`, `in`
 - Sorting: `sort=field,direction` (supports multiple: `sort=price,desc&sort=name,asc`)
 - Soft delete visibility: `deleted=true` to include soft-deleted records

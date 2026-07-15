@@ -205,15 +205,16 @@ public class Category { ... }
 
 ## Pipeline Order
 
-Security checks happen **before** rate limiting:
+For entities with multiple features enabled, the full pipeline is:
 
 ```
-Request → Security Check → Rate Limit → Business Logic → Response
+Request → Tenant Resolution → Security Check → Rate Limit → Business Logic → Response
 ```
 
-This means:
+Security checks happen **before** rate limiting. This means:
 - Unauthenticated requests never consume rate limit tokens
 - A 401/403 is returned immediately without touching the database
+- For `@FlashMultiTenant` entities, tenant resolution happens first (400 if missing header)
 
 ---
 
