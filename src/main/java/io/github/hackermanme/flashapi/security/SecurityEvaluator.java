@@ -11,7 +11,7 @@ import java.util.Set;
  * Evaluates @FlashSecured authorization rules against the current request.
  * Stateless — one instance shared across all entities.
  */
-public final class SecurityEvaluator {
+public class SecurityEvaluator {
 
     private static final String PERMIT_ALL = "permitAll";
     private static final String AUTHENTICATED = "authenticated";
@@ -76,38 +76,11 @@ public final class SecurityEvaluator {
         return new String[]{AUTHENTICATED};
     }
 
-    private Object getCurrentPrincipal() {
-        try {
-            var ctx = org.springframework.security.core.context.SecurityContextHolder.getContext();
-            var auth = ctx.getAuthentication();
-            if (auth == null || !auth.isAuthenticated()) {
-                return null;
-            }
-            if (auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
-                return null;
-            }
-            if (auth.getPrincipal() instanceof String s && "anonymousUser".equals(s)) {
-                return null;
-            }
-            return auth.getPrincipal();
-        } catch (NoClassDefFoundError e) {
-            return null;
-        }
+    protected Object getCurrentPrincipal() {
+        return null;
     }
 
-    @SuppressWarnings("unchecked")
-    private Collection<String> getCurrentAuthorities() {
-        try {
-            var ctx = org.springframework.security.core.context.SecurityContextHolder.getContext();
-            var auth = ctx.getAuthentication();
-            if (auth == null) {
-                return Set.of();
-            }
-            return auth.getAuthorities().stream()
-                    .map(ga -> ga.getAuthority())
-                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        } catch (NoClassDefFoundError e) {
-            return Set.of();
-        }
+    protected Collection<String> getCurrentAuthorities() {
+        return Set.of();
     }
 }

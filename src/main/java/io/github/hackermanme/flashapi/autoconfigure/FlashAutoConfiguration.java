@@ -152,6 +152,13 @@ public class FlashAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SecurityEvaluator flashSecurityEvaluator() {
+        if (isSpringSecurityPresent()) {
+            try {
+                Class<?> cls = Class.forName("io.github.hackermanme.flashapi.security.SpringSecurityEvaluator");
+                return (SecurityEvaluator) cls.getDeclaredConstructor().newInstance();
+            } catch (Exception ignored) {
+            }
+        }
         return new SecurityEvaluator();
     }
 
@@ -237,6 +244,15 @@ public class FlashAutoConfiguration {
             log.info("FlashAPI: OpenAPI docs available at {}", docsPath);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException("FlashAPI internal error: OpenAPI handler method missing", e);
+        }
+    }
+
+    private boolean isSpringSecurityPresent() {
+        try {
+            Class.forName("org.springframework.security.core.context.SecurityContextHolder");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 

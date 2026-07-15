@@ -6,6 +6,7 @@ import jakarta.persistence.criteria.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 /**
  * Handles soft delete operations.
@@ -30,14 +31,16 @@ public class SoftDeleteHandler {
         try {
             var field = meta.entityClass().getDeclaredField(deletedAtColumn);
             field.setAccessible(true);
-            field.set(entity, Instant.now());
+            Object timestamp = field.getType() == LocalDateTime.class
+                    ? LocalDateTime.now() : Instant.now();
+            field.set(entity, timestamp);
             entityManager.merge(entity);
             entityManager.flush();
             return true;
         } catch (NoSuchFieldException e) {
             throw new IllegalStateException(
                     "Entity " + meta.entityName() + " has softDelete=true but no field named '"
-                            + deletedAtColumn + "'. Add: private Instant " + deletedAtColumn + ";");
+                            + deletedAtColumn + "'. Add: private LocalDateTime " + deletedAtColumn + ";");
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Cannot set " + deletedAtColumn + " on " + meta.entityName(), e);
         }

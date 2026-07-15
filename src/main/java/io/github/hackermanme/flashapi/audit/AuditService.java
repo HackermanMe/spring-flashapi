@@ -3,8 +3,6 @@ package io.github.hackermanme.flashapi.audit;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import jakarta.persistence.EntityManager;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -121,12 +119,17 @@ public class AuditService {
 
     private String currentUser() {
         try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-                return auth.getName();
+            Class<?> holderClass = Class.forName("org.springframework.security.core.context.SecurityContextHolder");
+            Object ctx = holderClass.getMethod("getContext").invoke(null);
+            Object auth = ctx.getClass().getMethod("getAuthentication").invoke(ctx);
+            if (auth != null) {
+                boolean authenticated = (boolean) auth.getClass().getMethod("isAuthenticated").invoke(auth);
+                Object principal = auth.getClass().getMethod("getPrincipal").invoke(auth);
+                if (authenticated && !"anonymousUser".equals(principal)) {
+                    return (String) auth.getClass().getMethod("getName").invoke(auth);
+                }
             }
-        } catch (NoClassDefFoundError ignored) {
-            // Spring Security not on classpath
+        } catch (Exception ignored) {
         }
         return "anonymous";
     }

@@ -63,7 +63,7 @@ public final class EntityScanner {
 
         String path = annotation.path().isEmpty() ? pluralize(clazz.getSimpleName()) : annotation.path();
         Set<CrudOperation> ops = resolveOperations(annotation);
-        boolean auditEnabled = auditAnnotation == null || auditAnnotation.enabled();
+        boolean auditEnabled = auditAnnotation != null && auditAnnotation.enabled();
         boolean auditTrackFields = auditAnnotation != null && auditAnnotation.trackFields();
         String tenantField = multiTenantAnnotation != null ? multiTenantAnnotation.field() : null;
 

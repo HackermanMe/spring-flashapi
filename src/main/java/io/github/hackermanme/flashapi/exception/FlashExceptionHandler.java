@@ -2,7 +2,6 @@ package io.github.hackermanme.flashapi.exception;
 
 import io.github.hackermanme.flashapi.bulk.BulkLimitExceededException;
 import io.github.hackermanme.flashapi.export.ExportUnavailableException;
-import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,21 +24,6 @@ public class FlashExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(FlashExceptionHandler.class);
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(ConstraintViolationException ex) {
-        List<Map<String, String>> errors = ex.getConstraintViolations().stream()
-                .map(v -> Map.of(
-                        "field", extractFieldName(v.getPropertyPath().toString()),
-                        "message", v.getMessage()
-                ))
-                .toList();
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", 400);
-        body.put("error", "Validation failed");
-        body.put("errors", errors);
-        return ResponseEntity.badRequest().body(body);
-    }
 
     @ExceptionHandler(ExportUnavailableException.class)
     public ResponseEntity<Map<String, Object>> handleExportUnavailable(ExportUnavailableException ex) {
@@ -83,8 +66,4 @@ public class FlashExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
-    private String extractFieldName(String propertyPath) {
-        int lastDot = propertyPath.lastIndexOf('.');
-        return lastDot >= 0 ? propertyPath.substring(lastDot + 1) : propertyPath;
-    }
 }
