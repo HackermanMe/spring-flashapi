@@ -49,15 +49,12 @@ public class FlashAutoConfiguration {
     private final ApplicationContext context;
     private final FlashProperties properties;
     private final EntityManager entityManager;
-    private final RequestMappingHandlerMapping handlerMapping;
 
     public FlashAutoConfiguration(ApplicationContext context, FlashProperties properties,
-                                  EntityManager entityManager,
-                                  RequestMappingHandlerMapping handlerMapping) {
+                                  EntityManager entityManager) {
         this.context = context;
         this.properties = properties;
         this.entityManager = entityManager;
-        this.handlerMapping = handlerMapping;
     }
 
     @Bean
@@ -178,6 +175,9 @@ public class FlashAutoConfiguration {
 
         validateSecuritySetup(entities);
 
+        RequestMappingHandlerMapping handlerMapping = context.getBean(
+                "requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
+
         GenericCrudService crudService = context.getBean(GenericCrudService.class);
         ServiceResolver serviceResolver = context.getBean(ServiceResolver.class);
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
@@ -217,6 +217,9 @@ public class FlashAutoConfiguration {
 
     private void registerOpenApiRoutes(List<EntityMetadata> entities) {
         try {
+            RequestMappingHandlerMapping handlerMapping = context.getBean(
+                    "requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
+
             OpenApiGenerator generator = new OpenApiGenerator(properties, entities);
             Map<String, Object> spec = generator.generate();
             OpenApiController controller = new OpenApiController(spec);
