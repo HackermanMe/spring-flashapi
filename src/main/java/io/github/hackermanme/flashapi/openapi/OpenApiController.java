@@ -1,11 +1,11 @@
 package io.github.hackermanme.flashapi.openapi;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Map;
 
 public final class OpenApiController {
@@ -21,9 +21,53 @@ public final class OpenApiController {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         if (cachedJson == null) {
-            cachedJson = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(spec);
+            cachedJson = toJson(spec);
         }
         response.getWriter().write(cachedJson);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String toJson(Object value) {
+        if (value == null) return "null";
+        if (value instanceof Boolean || value instanceof Number) return value.toString();
+        if (value instanceof String s) return "\"" + escape(s) + "\"";
+        if (value instanceof Map<?, ?> map) {
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) sb.append(",");
+                sb.append("\"").append(escape(entry.getKey().toString())).append("\":");
+                sb.append(toJson(entry.getValue()));
+                first = false;
+            }
+            return sb.append("}").toString();
+        }
+        if (value instanceof Collection<?> list) {
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Object item : list) {
+                if (!first) sb.append(",");
+                sb.append(toJson(item));
+                first = false;
+            }
+            return sb.append("]").toString();
+        }
+        if (value.getClass().isArray()) {
+            Object[] arr = (Object[]) value;
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < arr.length; i++) {
+                if (i > 0) sb.append(",");
+                sb.append(toJson(arr[i]));
+            }
+            return sb.append("]").toString();
+        }
+        return "\"" + escape(value.toString()) + "\"";
+    }
+
+    private static String escape(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
     public void serveUi(HttpServletRequest request, HttpServletResponse response) throws IOException {
