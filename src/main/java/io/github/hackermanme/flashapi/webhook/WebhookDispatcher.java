@@ -1,6 +1,5 @@
 package io.github.hackermanme.flashapi.webhook;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import org.slf4j.Logger;
@@ -15,6 +14,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * Dispatches webhook events asynchronously to configured URLs.
@@ -28,7 +28,6 @@ public final class WebhookDispatcher {
     private final List<String> urls;
     private final int maxRetries;
     private final Duration timeout;
-    private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final ExecutorService executor;
 
@@ -36,8 +35,6 @@ public final class WebhookDispatcher {
         this.urls = urls != null ? List.copyOf(urls) : List.of();
         this.maxRetries = maxRetries;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
-        this.objectMapper = new ObjectMapper();
-        this.objectMapper.findAndRegisterModules();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(timeout)
                 .build();
@@ -69,7 +66,7 @@ public final class WebhookDispatcher {
     private void deliver(String url, WebhookEvent payload) {
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                String body = objectMapper.writeValueAsString(payload);
+                String body = toJson(payload);
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(url))
                         .timeout(timeout)
@@ -125,5 +122,31 @@ public final class WebhookDispatcher {
         } catch (IllegalAccessException e) {
             return "unknown";
         }
+    }
+
+    private String toJson(WebhookEvent payload) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"event\":\"").append(escape(payload.event())).append("\"");
+        sb.append(",\"entity\":\"").append(escape(payload.entity())).append("\"");
+        sb.append(",\"entityId\":\"").append(escape(payload.entityId())).append("\"");
+        sb.append(",\"timestamp\":\"").append(payload.timestamp().toString()).append("\"");
+        sb.append(",\"data\":{");
+        sb.append(payload.data().entrySet().stream()
+                .map(e -> "\"" + escape(e.getKey()) + "\":" + valueToJson(e.getValue()))
+                .collect(Collectors.joining(",")));
+        sb.append("}}");
+        return sb.toString();
+    }
+
+    private String valueToJson(Object value) {
+        if (value == null) return "null";
+        if (value instanceof Number || value instanceof Boolean) return value.toString();
+        return "\"" + escape(value.toString()) + "\"";
+    }
+
+    private String escape(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 }
