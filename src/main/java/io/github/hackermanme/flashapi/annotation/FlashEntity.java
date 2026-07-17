@@ -50,6 +50,14 @@ public @interface FlashEntity {
     int cacheTtl() default 300;
 
     /**
+     * Field used as the URL path variable for single-resource endpoints.
+     * Defaults to the @Id field. Use this to expose a UUID or slug instead of the primary key.
+     * The field must exist on the entity and have a unique constraint.
+     * Example: lookupField = "trackingId" → GET /api/eleves/{trackingId}
+     */
+    String lookupField() default "";
+
+    /**
      * Enable rate limiting for this entity's endpoints.
      */
     boolean rateLimit() default false;

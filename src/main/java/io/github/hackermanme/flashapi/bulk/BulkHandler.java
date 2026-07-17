@@ -41,18 +41,19 @@ public final class BulkHandler {
     public BulkResponse bulkUpdate(EntityMetadata meta, List<Map<String, Object>> items) {
         validateSize(items);
         List<BulkResult> results = new ArrayList<>(items.size());
+        String identifierField = meta.hasCustomLookupField() ? meta.lookupFieldName() : meta.idFieldName();
 
         for (int i = 0; i < items.size(); i++) {
             try {
                 Map<String, Object> item = items.get(i);
-                Object id = extractId(meta, item);
+                Object id = extractIdentifier(meta, item);
                 if (id == null) {
-                    results.add(BulkResult.failure(i, "Missing '" + meta.idFieldName() + "' field"));
+                    results.add(BulkResult.failure(i, "Missing '" + identifierField + "' field"));
                     continue;
                 }
 
                 Map<String, Object> data = new HashMap<>(item);
-                data.remove(meta.idFieldName());
+                data.remove(identifierField);
 
                 Optional<Object> updated = crudService.update(meta, id, data);
                 if (updated.isPresent()) {
@@ -73,13 +74,14 @@ public final class BulkHandler {
     public BulkResponse bulkDelete(EntityMetadata meta, List<Object> ids) {
         validateSize(ids);
         List<BulkResult> results = new ArrayList<>(ids.size());
+        String identifierField = meta.hasCustomLookupField() ? meta.lookupFieldName() : meta.idFieldName();
 
         for (int i = 0; i < ids.size(); i++) {
             try {
-                Object id = coerceId(meta, ids.get(i));
+                Object id = coerceIdentifier(meta, ids.get(i));
                 boolean deleted = crudService.delete(meta, id);
                 if (deleted) {
-                    results.add(BulkResult.success(i, "deleted", Map.of(meta.idFieldName(), id)));
+                    results.add(BulkResult.success(i, "deleted", Map.of(identifierField, id)));
                 } else {
                     results.add(BulkResult.failure(i, "Not found: " + id));
                 }
@@ -100,20 +102,21 @@ public final class BulkHandler {
         }
     }
 
-    private Object extractId(EntityMetadata meta, Map<String, Object> item) {
-        Object raw = item.get(meta.idFieldName());
+    private Object extractIdentifier(EntityMetadata meta, Map<String, Object> item) {
+        String field = meta.hasCustomLookupField() ? meta.lookupFieldName() : meta.idFieldName();
+        Object raw = item.get(field);
         if (raw == null) return null;
-        return coerceId(meta, raw);
+        return coerceIdentifier(meta, raw);
     }
 
-    private Object coerceId(EntityMetadata meta, Object raw) {
+    private Object coerceIdentifier(EntityMetadata meta, Object raw) {
         if (raw == null) return null;
-        Class<?> idType = meta.idType();
-        if (idType.isInstance(raw)) return raw;
+        Class<?> type = meta.hasCustomLookupField() ? meta.lookupFieldType() : meta.idType();
+        if (type.isInstance(raw)) return raw;
         String str = raw.toString();
-        if (idType == Long.class || idType == long.class) return Long.parseLong(str);
-        if (idType == Integer.class || idType == int.class) return Integer.parseInt(str);
-        if (idType == java.util.UUID.class) return java.util.UUID.fromString(str);
+        if (type == Long.class || type == long.class) return Long.parseLong(str);
+        if (type == Integer.class || type == int.class) return Integer.parseInt(str);
+        if (type == java.util.UUID.class) return java.util.UUID.fromString(str);
         return str;
     }
 

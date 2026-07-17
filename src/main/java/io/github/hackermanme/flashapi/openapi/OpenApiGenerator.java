@@ -389,11 +389,17 @@ public final class OpenApiGenerator {
     }
 
     private Map<String, Object> idPathParam(EntityMetadata meta) {
+        String paramName = meta.hasCustomLookupField() ? meta.lookupFieldName() : "id";
+        Class<?> type = meta.hasCustomLookupField() ? meta.lookupFieldType() : meta.idType();
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", mapIdType(type));
+        String format = mapJavaFormat(type);
+        if (format != null) schema.put("format", format);
         return Map.of(
-                "name", "id",
+                "name", paramName,
                 "in", "path",
                 "required", true,
-                "schema", Map.of("type", mapIdType(meta.idType()))
+                "schema", schema
         );
     }
 

@@ -23,12 +23,15 @@ public record EntityMetadata(
         int rateLimitRequests,
         int rateLimitWindow,
         String tenantField,
+        String lookupFieldName,
+        Class<?> lookupFieldType,
         Set<CrudOperation> allowedOperations,
         List<FieldMetadata> fields,
         Map<String, FieldMetadata> fieldsByName,
         List<FieldMetadata> creatableFields,
         List<FieldMetadata> updatableFields,
         List<FieldMetadata> visibleFields,
+        List<FieldMetadata> exportableFields,
         FieldMetadata primaryKeyField,
         List<RelationMetadata> relations,
         Map<String, RelationMetadata> relationsByName
@@ -43,5 +46,9 @@ public record EntityMetadata(
 
     public boolean isMultiTenant() {
         return tenantField != null;
+    }
+
+    public boolean hasCustomLookupField() {
+        return lookupFieldName != null && !lookupFieldName.equals(idFieldName);
     }
 }

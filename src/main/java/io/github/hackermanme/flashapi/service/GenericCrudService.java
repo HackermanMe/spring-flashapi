@@ -78,11 +78,30 @@ public class GenericCrudService {
 
     @Transactional(readOnly = true)
     public Optional<Object> findById(EntityMetadata meta, Object id) {
+        if (meta.hasCustomLookupField()) {
+            return findByLookupField(meta, id);
+        }
         Object entity = entityManager.find(meta.entityClass(), id);
         if (entity != null && !tenantHandler.belongsToCurrentTenant(meta, entity)) {
             return Optional.empty();
         }
         return Optional.ofNullable(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Object> findByLookupField(EntityMetadata meta, Object lookupValue) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Object> query = cb.createQuery(Object.class);
+        Root<?> root = query.from(meta.entityClass());
+        query.select(root);
+        query.where(cb.equal(root.get(meta.lookupFieldName()), lookupValue));
+        List<Object> results = entityManager.createQuery(query).setMaxResults(1).getResultList();
+        if (results.isEmpty()) return Optional.empty();
+        Object entity = results.get(0);
+        if (!tenantHandler.belongsToCurrentTenant(meta, entity)) {
+            return Optional.empty();
+        }
+        return Optional.of(entity);
     }
 
     @Transactional
@@ -100,7 +119,9 @@ public class GenericCrudService {
 
     @Transactional
     public Optional<Object> update(EntityMetadata meta, Object id, Map<String, Object> data) {
-        Object instance = entityManager.find(meta.entityClass(), id);
+        Object instance = meta.hasCustomLookupField()
+                ? findByLookupField(meta, id).orElse(null)
+                : entityManager.find(meta.entityClass(), id);
         if (instance == null) return Optional.empty();
         if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return Optional.empty();
 
@@ -123,12 +144,15 @@ public class GenericCrudService {
 
     @Transactional
     public boolean delete(EntityMetadata meta, Object id) {
-        Object instance = entityManager.find(meta.entityClass(), id);
+        Object instance = meta.hasCustomLookupField()
+                ? findByLookupField(meta, id).orElse(null)
+                : entityManager.find(meta.entityClass(), id);
         if (instance == null) return false;
         if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return false;
 
         if (meta.softDelete()) {
-            boolean deleted = softDeleteHandler.softDelete(meta, id);
+            Object realId = extractPrimaryKey(meta, instance);
+            boolean deleted = softDeleteHandler.softDelete(meta, realId);
             if (deleted) webhookDispatcher.dispatch(meta, "DELETE", instance);
             return deleted;
         }
@@ -143,7 +167,21 @@ public class GenericCrudService {
     @Transactional
     public boolean restore(EntityMetadata meta, Object id) {
         if (!meta.softDelete()) return false;
+        if (meta.hasCustomLookupField()) {
+            Object instance = findByLookupField(meta, id).orElse(null);
+            if (instance == null) return false;
+            Object realId = extractPrimaryKey(meta, instance);
+            return softDeleteHandler.restore(meta, realId);
+        }
         return softDeleteHandler.restore(meta, id);
+    }
+
+    private Object extractPrimaryKey(EntityMetadata meta, Object instance) {
+        try {
+            return meta.primaryKeyField().javaField().get(instance);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Cannot read primary key from " + meta.entityName(), e);
+        }
     }
 
     @Transactional(readOnly = true)

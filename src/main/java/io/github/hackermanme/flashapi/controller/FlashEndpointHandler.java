@@ -120,10 +120,12 @@ public final class FlashEndpointHandler {
     }
 
     private Object convertId(String raw) {
-        Class<?> idType = controller.getMetadata().idType();
-        if (idType == Long.class || idType == long.class) return Long.parseLong(raw);
-        if (idType == Integer.class || idType == int.class) return Integer.parseInt(raw);
-        if (idType == java.util.UUID.class) return java.util.UUID.fromString(raw);
+        Class<?> type = controller.getMetadata().hasCustomLookupField()
+                ? controller.getMetadata().lookupFieldType()
+                : controller.getMetadata().idType();
+        if (type == Long.class || type == long.class) return Long.parseLong(raw);
+        if (type == Integer.class || type == int.class) return Integer.parseInt(raw);
+        if (type == java.util.UUID.class) return java.util.UUID.fromString(raw);
         return raw;
     }
 
