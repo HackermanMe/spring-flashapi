@@ -35,8 +35,55 @@ This generates: `GET/POST /products`, `GET/PUT/DELETE /products/{id}`
 | `rateLimit` | boolean | `false` | Enable per-IP rate limiting ([details](rate-limiting.md)) |
 | `rateLimitRequests` | int | `100` | Max requests per window per IP |
 | `rateLimitWindow` | int | `60` | Rate limit window in seconds |
+| `lookupField` | String | `""` | Use a custom field instead of the primary key in URLs (e.g. a UUID field) |
 
 > All entities are automatically documented in the [OpenAPI spec](openapi.md) served at `/api/docs`.
+
+**Lookup Field (UUID-based URLs):**
+
+By default, FlashAPI uses the `@Id` field in URLs (`/products/{id}`). If you don't want to expose auto-increment IDs, use `lookupField` to route by a custom field (typically a UUID):
+
+```java
+@Entity
+@FlashEntity(lookupField = "trackingId")
+public class Order {
+    @Id @GeneratedValue
+    private Long id;
+
+    @Column(unique = true, nullable = false, updatable = false)
+    private UUID trackingId;
+
+    private String description;
+
+    @PrePersist
+    private void generateTrackingId() {
+        if (this.trackingId == null) this.trackingId = UUID.randomUUID();
+    }
+}
+```
+
+This generates URLs using `trackingId` instead of `id`:
+```
+GET    /api/orders/{trackingId}
+PUT    /api/orders/{trackingId}
+DELETE /api/orders/{trackingId}
+```
+
+Bulk operations also use the lookup field:
+```json
+// PUT /api/orders/bulk
+[
+  { "trackingId": "550e8400-...", "description": "Updated" }
+]
+
+// DELETE /api/orders/bulk
+["550e8400-...", "7c9e6679-..."]
+```
+
+Requirements:
+- The field must exist on the entity
+- It should be `unique` and `non-null` for reliable lookups
+- Supported types: `UUID`, `String`, `Long`, `Integer`
 
 **Path auto-pluralization rules:**
 - `Product` → `products`
@@ -196,16 +243,47 @@ private byte[] encryptionKey;
 - POST body: ignored
 - PUT body: ignored
 
+### `@FlashExportExclude`
+
+Field remains visible in API responses but is excluded from exports (CSV, XLSX, PDF). Use for fields that are fine to display in the UI but shouldn't appear in downloaded reports.
+
+```java
+@Entity
+@FlashEntity
+public class Employee {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String name;
+
+    private String department;
+
+    @FlashExportExclude
+    private String personalEmail;
+
+    @FlashExportExclude
+    private String phoneNumber;
+}
+```
+
+**Behavior:**
+- GET responses: included (normal)
+- POST/PUT body: accepted (normal)
+- Export (CSV/XLSX/PDF): excluded
+
+Useful when some data is relevant in the API context but shouldn't be mass-exported (privacy, compliance, or simply irrelevant for reports).
+
 ---
 
 ## Field Visibility Matrix
 
-| Annotation | In Response | In Create | In Update |
-|---|---|---|---|
-| *(none)* | Yes | Yes | Yes |
-| `@FlashReadOnly` | Yes | No | No |
-| `@FlashWriteOnly` | No | Yes | Yes |
-| `@FlashHidden` | No | No | No |
+| Annotation | In Response | In Create | In Update | In Export |
+|---|---|---|---|---|
+| *(none)* | Yes | Yes | Yes | Yes |
+| `@FlashReadOnly` | Yes | No | No | Yes |
+| `@FlashWriteOnly` | No | Yes | Yes | No |
+| `@FlashHidden` | No | No | No | No |
+| `@FlashExportExclude` | Yes | Yes | Yes | No |
 
 ---
 

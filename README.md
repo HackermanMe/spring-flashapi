@@ -60,7 +60,8 @@ DELETE /api/products/bulk                — batch delete
 - **OpenAPI documentation** — auto-generated spec + Swagger UI at `/api/docs`
 - **Soft delete** — timestamp-based with restore endpoint
 - **Audit trail** — who changed what, when, with field-level diffs
-- **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`
+- **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`, `@FlashExportExclude`
+- **Lookup field** — use UUID or any unique field in URLs instead of exposing auto-increment IDs
 - **Custom services** — implement `FlashCrudOperations<T, ID>` to add business logic
 - **Authorization** — `@FlashSecured` for role-based endpoint access control
 - **Multi-tenancy** — `@FlashMultiTenant` for automatic data isolation per tenant
