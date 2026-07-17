@@ -39,7 +39,7 @@ public final class ExportHandler {
 
         validateFormatAvailability(format);
 
-        List<FieldMetadata> columns = meta.visibleFields();
+        List<FieldMetadata> columns = meta.exportableFields();
         String filename = meta.path() + "_" + LocalDateTime.now().format(TIMESTAMP_FMT)
                 + "." + format.extension();
 

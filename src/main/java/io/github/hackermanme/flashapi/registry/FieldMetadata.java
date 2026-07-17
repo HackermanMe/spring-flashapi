@@ -15,6 +15,7 @@ public record FieldMetadata(
         boolean hidden,
         boolean readOnly,
         boolean writeOnly,
+        boolean exportExcluded,
         boolean nullable,
         boolean insertable,
         boolean updatable,
@@ -31,5 +32,9 @@ public record FieldMetadata(
 
     public boolean isVisibleInResponse() {
         return !hidden && !writeOnly;
+    }
+
+    public boolean isVisibleInExport() {
+        return !hidden && !writeOnly && !exportExcluded;
     }
 }
