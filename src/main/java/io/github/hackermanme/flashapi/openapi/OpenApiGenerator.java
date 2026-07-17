@@ -341,6 +341,13 @@ public final class OpenApiGenerator {
         if (format != null) {
             schema.put("format", format);
         }
+        if (field.type().isEnum()) {
+            List<String> values = new ArrayList<>();
+            for (Object constant : field.type().getEnumConstants()) {
+                values.add(((Enum<?>) constant).name());
+            }
+            schema.put("enum", values);
+        }
         if (field.maxLength() != null) {
             schema.put("maxLength", field.maxLength());
         }

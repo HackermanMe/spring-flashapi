@@ -159,8 +159,12 @@ public class FlashAutoConfiguration {
         return new SecurityEvaluator();
     }
 
+    private volatile boolean initialized = false;
+
     @EventListener(ContextRefreshedEvent.class)
     public void onApplicationReady() {
+        if (initialized) return;
+        initialized = true;
         String[] basePackages = resolveBasePackages();
         if (basePackages.length == 0) {
             log.warn("FlashAPI: no base packages found. Add @EnableFlashApi(basePackages = \"...\") or place @EnableFlashApi on your main class.");
@@ -199,6 +203,30 @@ public class FlashAutoConfiguration {
         if (properties.getOpenapi().isEnabled()) {
             registerOpenApiRoutes(entities);
         }
+
+        warnIfSpringSecurityMayBlock();
+    }
+
+    private void warnIfSpringSecurityMayBlock() {
+        if (!isSpringSecurityPresent()) return;
+
+        try {
+            context.getBean("springSecurityFilterChain");
+        } catch (Exception e) {
+            return;
+        }
+
+        String basePath = properties.getBasePath();
+        String docsPath = properties.getOpenapi().getDocsPath();
+        log.warn("FlashAPI: Spring Security detected. Make sure your SecurityFilterChain " +
+                "permits access to FlashAPI endpoints ({}/** and {}).\n" +
+                "  Example:\n" +
+                "    http.authorizeHttpRequests(auth -> auth\n" +
+                "        .requestMatchers(\"{}/**\").permitAll()\n" +
+                "        .requestMatchers(\"{}/**\").permitAll()\n" +
+                "        // ... your other rules\n" +
+                "    );",
+                basePath, docsPath, basePath, docsPath);
     }
 
     private void validateSecuritySetup(List<EntityMetadata> entities) {
@@ -226,6 +254,7 @@ public class FlashAutoConfiguration {
 
             String docsPath = properties.getOpenapi().getDocsPath();
             if (docsPath.endsWith("/")) docsPath = docsPath.substring(0, docsPath.length() - 1);
+            if (!docsPath.startsWith("/")) docsPath = "/" + docsPath;
 
             var handleSpec = OpenApiController.class.getMethod("serveSpec",
                     jakarta.servlet.http.HttpServletRequest.class,
@@ -233,6 +262,7 @@ public class FlashAutoConfiguration {
             var handleUi = OpenApiController.class.getMethod("serveUi",
                     jakarta.servlet.http.HttpServletRequest.class,
                     jakarta.servlet.http.HttpServletResponse.class);
+            log.debug("FlashAPI: registering OpenAPI routes at {}", docsPath);
 
             handlerMapping.registerMapping(
                     RequestMappingInfo.paths(docsPath + "/openapi.json").methods(RequestMethod.GET).build(),
@@ -247,6 +277,8 @@ public class FlashAutoConfiguration {
             log.info("FlashAPI: OpenAPI docs available at {}", docsPath);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException("FlashAPI internal error: OpenAPI handler method missing", e);
+        } catch (Exception e) {
+            log.error("FlashAPI: failed to register OpenAPI routes", e);
         }
     }
 
