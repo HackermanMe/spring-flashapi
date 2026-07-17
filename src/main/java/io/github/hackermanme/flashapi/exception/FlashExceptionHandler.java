@@ -1,6 +1,8 @@
 package io.github.hackermanme.flashapi.exception;
 
 import io.github.hackermanme.flashapi.bulk.BulkLimitExceededException;
+import io.github.hackermanme.flashapi.controller.FlashEndpointHandler;
+import io.github.hackermanme.flashapi.controller.FlashBulkEndpointHandler;
 import io.github.hackermanme.flashapi.export.ExportUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,10 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Global exception handler for FlashAPI-generated endpoints.
- * Low priority so user-defined handlers take precedence.
+ * Exception handler scoped to FlashAPI handlers only.
+ * Does not interfere with user-defined controllers or Spring's default error handling.
  */
-@RestControllerAdvice
+@RestControllerAdvice(assignableTypes = {FlashEndpointHandler.class, FlashBulkEndpointHandler.class})
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class FlashExceptionHandler {
 
