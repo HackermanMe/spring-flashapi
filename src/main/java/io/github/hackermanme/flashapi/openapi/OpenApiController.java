@@ -45,6 +45,7 @@ public final class OpenApiController {
                 <head>
                     <meta charset="UTF-8">
                     <title>%s — API Documentation</title>
+                    <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/HackermanMe/spring-flashapi/main/docs/assets/favicon.svg">
                     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
                     <style>
                         body { margin: 0; padding: 0; }
