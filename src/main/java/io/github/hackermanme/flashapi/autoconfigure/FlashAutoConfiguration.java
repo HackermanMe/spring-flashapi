@@ -187,6 +187,7 @@ public class FlashAutoConfiguration {
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
         BulkHandler bulkHandler = context.getBean(BulkHandler.class);
         RelationExpander relationExpander = context.getBean(RelationExpander.class);
+        relationExpander.setMetadataRegistry(entities);
         FlashCacheManager cacheManager = context.getBean(FlashCacheManager.class);
         FlashRateLimiter rateLimiter = context.getBean(FlashRateLimiter.class);
         SecurityEvaluator securityEvaluator = context.getBean(SecurityEvaluator.class);

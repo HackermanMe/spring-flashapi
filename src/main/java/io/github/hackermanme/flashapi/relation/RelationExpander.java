@@ -1,9 +1,10 @@
 package io.github.hackermanme.flashapi.relation;
 
+import io.github.hackermanme.flashapi.annotation.FlashHidden;
+import io.github.hackermanme.flashapi.annotation.FlashWriteOnly;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.registry.RelationMetadata;
-import jakarta.persistence.Id;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -11,9 +12,18 @@ import java.util.*;
 public final class RelationExpander {
 
     private final int maxDepth;
+    private volatile Map<Class<?>, EntityMetadata> metadataRegistry = Map.of();
 
     public RelationExpander(int maxDepth) {
         this.maxDepth = maxDepth;
+    }
+
+    public void setMetadataRegistry(List<EntityMetadata> entities) {
+        Map<Class<?>, EntityMetadata> map = new HashMap<>();
+        for (EntityMetadata meta : entities) {
+            map.put(meta.entityClass(), meta);
+        }
+        this.metadataRegistry = Collections.unmodifiableMap(map);
     }
 
     public Map<String, Object> serialize(EntityMetadata meta, Object entity, Set<String> expandFields) {
@@ -66,11 +76,26 @@ public final class RelationExpander {
     }
 
     private Map<String, Object> serializeRelatedEntity(Object entity) {
+        EntityMetadata knownMeta = metadataRegistry.get(entity.getClass());
+        if (knownMeta != null) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            for (FieldMetadata field : knownMeta.visibleFields()) {
+                try {
+                    map.put(field.name(), field.javaField().get(entity));
+                } catch (IllegalAccessException e) {
+                    map.put(field.name(), null);
+                }
+            }
+            return map;
+        }
+
         Map<String, Object> map = new LinkedHashMap<>();
         for (Field field : collectVisibleFields(entity.getClass())) {
             try {
                 field.setAccessible(true);
                 if (isRelationField(field)) continue;
+                if (field.isAnnotationPresent(FlashHidden.class)) continue;
+                if (field.isAnnotationPresent(FlashWriteOnly.class)) continue;
                 map.put(field.getName(), field.get(entity));
             } catch (IllegalAccessException e) {
                 map.put(field.getName(), null);
