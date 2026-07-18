@@ -6,6 +6,8 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import net.sf.jasperreports.engine.design.*;
 import net.sf.jasperreports.engine.export.JRPdfExporter;
 import net.sf.jasperreports.engine.type.HorizontalTextAlignEnum;
+import net.sf.jasperreports.engine.type.ModeEnum;
+import net.sf.jasperreports.engine.type.VerticalTextAlignEnum;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
 
@@ -80,37 +82,56 @@ public final class PdfExporter {
 
         // Column header band
         JRDesignBand headerBand = new JRDesignBand();
-        headerBand.setHeight(20);
+        headerBand.setHeight(24);
         for (int i = 0; i < columns.size(); i++) {
             JRDesignStaticText label = new JRDesignStaticText();
             label.setX(i * colWidth);
             label.setY(0);
             label.setWidth(colWidth);
-            label.setHeight(20);
+            label.setHeight(24);
             label.setText(columns.get(i).name());
             label.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
+            label.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
             label.setBold(Boolean.TRUE);
+            label.setMode(ModeEnum.OPAQUE);
+            label.setBackcolor(new java.awt.Color(0x3C, 0x78, 0xD8));
+            label.setForecolor(java.awt.Color.WHITE);
+            label.setFontSize(10f);
+            applyBorders(label.getLineBox(), 0.5f);
             headerBand.addElement(label);
         }
         design.setColumnHeader(headerBand);
 
         // Detail band
         JRDesignBand detailBand = new JRDesignBand();
-        detailBand.setHeight(16);
+        detailBand.setHeight(18);
         for (int i = 0; i < columns.size(); i++) {
             JRDesignTextField textField = new JRDesignTextField();
             textField.setX(i * colWidth);
             textField.setY(0);
             textField.setWidth(colWidth);
-            textField.setHeight(16);
+            textField.setHeight(18);
             textField.setBlankWhenNull(true);
+            textField.setHorizontalTextAlign(HorizontalTextAlignEnum.CENTER);
+            textField.setVerticalTextAlign(VerticalTextAlignEnum.MIDDLE);
+            textField.setFontSize(9f);
             textField.setExpression(new JRDesignExpression(
                     "$F{" + columns.get(i).name() + "}"));
+            applyBorders(textField.getLineBox(), 0.25f);
             detailBand.addElement(textField);
         }
         ((JRDesignSection) design.getDetailSection()).addBand(detailBand);
 
         return JasperCompileManager.compileReport(design);
+    }
+
+    private static void applyBorders(JRLineBox box, float width) {
+        box.getPen().setLineWidth(width);
+        box.getPen().setLineColor(java.awt.Color.DARK_GRAY);
+        box.getTopPen().setLineWidth(width);
+        box.getBottomPen().setLineWidth(width);
+        box.getLeftPen().setLineWidth(width);
+        box.getRightPen().setLineWidth(width);
     }
 
     private static List<Map<String, Object>> toMapList(List<FieldMetadata> columns,
