@@ -73,9 +73,17 @@ POST   /api/orders                              — unchanged (create, UUID auto
 GET    /api/orders/{trackingId}                 — get by UUID
 PUT    /api/orders/{trackingId}                 — update by UUID
 DELETE /api/orders/{trackingId}                 — delete by UUID
-GET    /api/orders/{trackingId}/history         — audit history by UUID
-POST   /api/orders/{trackingId}/restore         — restore soft-deleted by UUID
 ```
+
+> **Conditional endpoints:** The following endpoints only appear if their corresponding feature is enabled on the entity:
+>
+> | Endpoint | Requires |
+> |----------|----------|
+> | `POST /api/orders/{trackingId}/restore` | `@FlashEntity(softDelete = true)` |
+> | `GET /api/orders/{trackingId}/history` | `@FlashAudit` on the entity |
+>
+> If `softDelete` is not enabled, `DELETE` is a permanent deletion and there is no restore endpoint.
+> If `@FlashAudit` is absent, no history endpoint is generated.
 
 Bulk operations also use the lookup field automatically:
 ```json
