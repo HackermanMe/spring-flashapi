@@ -45,7 +45,8 @@ public final class OpenApiGenerator {
 
         for (EntityMetadata meta : entities) {
             String collectionPath = basePath + "/" + meta.path();
-            String itemPath = collectionPath + "/{id}";
+            String paramName = meta.hasCustomLookupField() ? meta.lookupFieldName() : "id";
+            String itemPath = collectionPath + "/{" + paramName + "}";
 
             if (meta.isOperationAllowed(CrudOperation.LIST) || meta.isOperationAllowed(CrudOperation.CREATE)) {
                 paths.put(collectionPath, buildCollectionOperations(meta));
