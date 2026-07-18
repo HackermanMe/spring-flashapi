@@ -1,9 +1,9 @@
 package io.github.hackermanme.flashapi.export;
 
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import java.io.IOException;
@@ -20,12 +20,18 @@ public final class ExcelExporter {
     public static void write(OutputStream out, String sheetName, List<FieldMetadata> columns,
                              List<Object> entities) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(STREAMING_WINDOW)) {
-            Sheet sheet = workbook.createSheet(sheetName);
+            SXSSFSheet sheet = workbook.createSheet(sheetName);
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle dataStyle = createDataStyle(workbook);
 
             // Header row
             Row header = sheet.createRow(0);
+            header.setHeightInPoints(22);
             for (int i = 0; i < columns.size(); i++) {
-                header.createCell(i).setCellValue(columns.get(i).name());
+                Cell cell = header.createCell(i);
+                cell.setCellValue(columns.get(i).name());
+                cell.setCellStyle(headerStyle);
             }
 
             // Data rows
@@ -36,11 +42,64 @@ public final class ExcelExporter {
                     Cell cell = row.createCell(col);
                     Object value = readField(columns.get(col), entity);
                     setCellValue(cell, value);
+                    cell.setCellStyle(dataStyle);
                 }
             }
 
+            // Auto-size columns (tracked for SXSSF)
+            sheet.trackAllColumnsForAutoSizing();
+            for (int i = 0; i < columns.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Freeze header row
+            sheet.createFreezePane(0, 1);
+
+            // Auto-filter on header
+            sheet.setAutoFilter(new CellRangeAddress(0, 0, 0, columns.size() - 1));
+
             workbook.write(out);
         }
+    }
+
+    private static CellStyle createHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+        font.setFontHeightInPoints((short) 11);
+        style.setFont(font);
+
+        style.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
+        return style;
+    }
+
+    private static CellStyle createDataStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setTopBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        style.setBottomBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        style.setLeftBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        style.setRightBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+
+        return style;
     }
 
     private static void setCellValue(Cell cell, Object value) {
