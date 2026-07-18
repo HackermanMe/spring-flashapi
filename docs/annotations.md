@@ -44,6 +44,9 @@ This generates: `GET/POST /products`, `GET/PUT/DELETE /products/{id}`
 By default, FlashAPI uses the `@Id` field in URLs (`/products/{id}`). If you don't want to expose auto-increment IDs, use `lookupField` to route by a custom field (typically a UUID):
 
 ```java
+import jakarta.persistence.*;
+import java.util.UUID;
+
 @Entity
 @FlashEntity(lookupField = "trackingId")
 public class Order {
@@ -55,6 +58,7 @@ public class Order {
 
     private String description;
 
+    // JPA lifecycle callback — generates UUID before first insert
     @PrePersist
     private void generateTrackingId() {
         if (this.trackingId == null) this.trackingId = UUID.randomUUID();
@@ -62,28 +66,37 @@ public class Order {
 }
 ```
 
-This generates URLs using `trackingId` instead of `id`:
+With this configuration, all single-resource URLs use `trackingId` instead of `id`:
 ```
-GET    /api/orders/{trackingId}
-PUT    /api/orders/{trackingId}
-DELETE /api/orders/{trackingId}
+GET    /api/orders                              — unchanged (list)
+POST   /api/orders                              — unchanged (create, UUID auto-generated)
+GET    /api/orders/{trackingId}                 — get by UUID
+PUT    /api/orders/{trackingId}                 — update by UUID
+DELETE /api/orders/{trackingId}                 — delete by UUID
+GET    /api/orders/{trackingId}/history         — audit history by UUID
+POST   /api/orders/{trackingId}/restore         — restore soft-deleted by UUID
 ```
 
-Bulk operations also use the lookup field:
+Bulk operations also use the lookup field automatically:
 ```json
-// PUT /api/orders/bulk
+// PUT /api/orders/bulk — each item must include the lookupField
 [
-  { "trackingId": "550e8400-...", "description": "Updated" }
+  { "trackingId": "550e8400-e29b-41d4-a716-446655440000", "description": "Updated order" },
+  { "trackingId": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "description": "Another update" }
 ]
 
-// DELETE /api/orders/bulk
-["550e8400-...", "7c9e6679-..."]
+// DELETE /api/orders/bulk — list of lookupField values
+["550e8400-e29b-41d4-a716-446655440000", "7c9e6679-7425-40de-944b-e07fc1f90ae7"]
 ```
 
-Requirements:
-- The field must exist on the entity
-- It should be `unique` and `non-null` for reliable lookups
+The OpenAPI/Swagger documentation at `/api/docs` automatically reflects the lookup field name and type in path parameters.
+
+**Requirements:**
+- The field must exist on the entity (validated at startup — startup fails with a clear error if not)
+- It should have `unique = true` and `nullable = false` for reliable lookups
+- It should have `updatable = false` to prevent breaking existing URLs
 - Supported types: `UUID`, `String`, `Long`, `Integer`
+- The `@Id` field is still required and used internally by JPA — it's just hidden from URLs
 
 **Path auto-pluralization rules:**
 - `Product` → `products`
