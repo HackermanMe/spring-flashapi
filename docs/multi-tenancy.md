@@ -1,6 +1,23 @@
 # Multi-Tenancy
 
-FlashAPI supports automatic data isolation between tenants. Each tenant sees only its own data — no cross-tenant leakage, no manual filtering required.
+## The Problem
+
+Imagine a SaaS school management app. Three schools share the same application and the same database:
+
+- School Alpha (`alpha`)
+- School Beta (`beta`)
+- School Gamma (`gamma`)
+
+All schools have students in the same `students` table. When School Alpha calls `GET /api/students`, it must see **only its own students** — never Beta's or Gamma's.
+
+Without `@FlashMultiTenant`, you'd have to manually:
+1. Add `WHERE schoolId = 'alpha'` to every query
+2. Check on every PUT/DELETE that the student belongs to the requesting school
+3. Force the schoolId on every CREATE
+
+Forget just once → data leaks between schools.
+
+**`@FlashMultiTenant` eliminates this entirely.** You declare which field identifies the owner, and FlashAPI guarantees isolation across all operations automatically.
 
 ---
 
@@ -11,37 +28,43 @@ FlashAPI supports automatic data isolation between tenants. Each tenant sees onl
 ```java
 @Entity
 @FlashEntity
-@FlashMultiTenant(field = "tenantId")
-public class Document {
+@FlashMultiTenant(field = "schoolId")
+public class Student {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
-    private String content;
-    private String tenantId;  // FlashAPI manages this field
+    private String schoolId;  // FlashAPI manages this field automatically
+    private String name;
+    private String grade;
 }
 ```
 
 ### 2. Send the tenant header with each request
 
-```bash
-# Tenant A creates a document
-curl -X POST http://localhost:8080/api/documents \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-A" \
-  -d '{"title": "Secret Plan", "content": "..."}'
+Every HTTP request must identify "who is asking" via a header (default: `X-Tenant-Id`):
 
-# Tenant B cannot see it
-curl http://localhost:8080/api/documents \
-  -H "X-Tenant-Id: tenant-B"
+```bash
+# School Alpha creates a student
+curl -X POST http://localhost:8080/api/students \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: alpha" \
+  -d '{"name": "Alice", "grade": "3rd"}'
+
+# School Beta tries to list students — sees nothing from Alpha
+curl http://localhost:8080/api/students \
+  -H "X-Tenant-Id: beta"
 # → {"data": [], "meta": {"totalElements": 0, ...}}
 ```
 
-That's it. FlashAPI automatically:
-- Filters all LIST/READ queries by tenant
-- Injects the tenant ID on CREATE (overrides any user-supplied value)
-- Returns 404 for cross-tenant GET/PUT/DELETE (no existence leak)
-- Returns 400 if no tenant context is provided
+That's it. One annotation, and FlashAPI guarantees:
+
+| Action | What FlashAPI does |
+|--------|-------------------|
+| `GET /api/students` | Returns **only** students where `schoolId` matches the header |
+| `POST /api/students` | Forces `schoolId` to the header value (ignores any value in the body) |
+| `GET /api/students/{id}` from another school | Returns **404** (not 403 — doesn't even reveal the student exists) |
+| `PUT` or `DELETE` from another school | Returns **404** — impossible to modify another school's data |
+| Request without the tenant header | Returns **400** "Tenant context required" |
 
 ---
 
@@ -82,21 +105,23 @@ flashapi.tenant.header-name=X-Tenant-Id
 
 ---
 
-## Tenant Resolution
+## Tenant Resolution — Where Does the Tenant Come From?
+
+In production, no one types `X-Tenant-Id` manually. Your frontend or auth system sends it. FlashAPI supports multiple strategies:
 
 ### Default: HTTP header
 
-By default, FlashAPI reads the tenant from the `X-Tenant-Id` header. Change the header name via configuration:
+The simplest approach — your frontend includes the tenant in every request:
 
 ```yaml
 flashapi:
   tenant:
-    header-name: X-Organization-Id
+    header-name: X-Tenant-Id    # change this to match your header name
 ```
 
 ### Custom: implement TenantResolver
 
-For complex scenarios (JWT claims, subdomains, database lookup), implement `TenantResolver`:
+For real-world apps, you'll extract the tenant from a JWT, a subdomain, or a database. Create a bean that implements `TenantResolver`:
 
 ```java
 @Component
@@ -113,9 +138,11 @@ public class JwtTenantResolver implements TenantResolver {
 }
 ```
 
-FlashAPI detects your bean via `@ConditionalOnMissingBean` and uses it instead of the default.
+FlashAPI auto-detects your bean and uses it instead of the default header resolver. You don't need to configure anything else.
 
 ### Subdomain-based resolution
+
+If your app uses subdomains like `alpha.myapp.com`, `beta.myapp.com`:
 
 ```java
 @Component
@@ -123,9 +150,9 @@ public class SubdomainTenantResolver implements TenantResolver {
 
     @Override
     public String resolve(HttpServletRequest request) {
-        String host = request.getServerName();
+        String host = request.getServerName(); // "alpha.myapp.com"
         int dot = host.indexOf('.');
-        return dot > 0 ? host.substring(0, dot) : null;
+        return dot > 0 ? host.substring(0, dot) : null; // "alpha"
     }
 }
 ```
@@ -134,38 +161,49 @@ public class SubdomainTenantResolver implements TenantResolver {
 
 ## Behavior Details
 
-### CREATE
+Let's say School Alpha creates a student "Alice", and School Beta tries to access her:
 
-The tenant field is **always overwritten** with the current tenant from `TenantContext`:
+### CREATE — tenant is forced, never trusted from the body
 
 ```bash
-# Even if you send tenantId in the body, it's ignored
-curl -X POST http://localhost:8080/api/documents \
-  -H "X-Tenant-Id: tenant-A" \
+# School Alpha creates a student
+# Even if the body sends schoolId: "beta", FlashAPI forces "alpha" from the header
+curl -X POST http://localhost:8080/api/students \
+  -H "X-Tenant-Id: alpha" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Test", "tenantId": "tenant-B"}'
+  -d '{"name": "Alice", "grade": "3rd", "schoolId": "beta"}'
 
-# Result: tenantId = "tenant-A" (from header, not body)
+# Result in database: schoolId = "alpha" (from header, body value ignored)
 ```
 
-### LIST
+This prevents malicious clients from injecting data into another tenant's space.
 
-All queries are automatically filtered:
+### LIST — automatic filtering, no manual WHERE clause
 
+```bash
+# School Alpha sees only its students
+curl http://localhost:8080/api/students -H "X-Tenant-Id: alpha"
+# → returns Alice and other Alpha students
+
+# School Beta sees nothing from Alpha
+curl http://localhost:8080/api/students -H "X-Tenant-Id: beta"
+# → {"data": [], "meta": {"totalElements": 0}}
+```
+
+Under the hood, FlashAPI adds:
 ```sql
--- What FlashAPI generates for tenant-A:
-SELECT * FROM document WHERE tenant_id = 'tenant-A' AND ...
+SELECT * FROM students WHERE school_id = 'alpha' AND ...
 ```
 
-### GET by ID
+### GET / UPDATE / DELETE — cross-tenant access returns 404
 
-If the entity exists but belongs to a different tenant → `404 Not Found` (not 403).
+```bash
+# Alice (id=1) belongs to Alpha. Beta tries to access her:
+curl http://localhost:8080/api/students/1 -H "X-Tenant-Id: beta"
+# → 404 Not Found
+```
 
-**Why 404 and not 403?** Returning 403 would confirm the resource exists, leaking information. 404 reveals nothing about other tenants' data.
-
-### UPDATE / DELETE
-
-Same as GET: if the entity doesn't belong to the current tenant → `404 Not Found`.
+**Why 404 and not 403?** If FlashAPI returned 403 ("access denied"), it would confirm that student #1 exists — leaking information to Beta. Returning 404 reveals nothing about other tenants' data.
 
 ### Export / Bulk
 
