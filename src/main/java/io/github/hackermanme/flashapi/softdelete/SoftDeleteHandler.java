@@ -29,7 +29,7 @@ public class SoftDeleteHandler {
         if (entity == null) return false;
 
         try {
-            var field = meta.entityClass().getDeclaredField(deletedAtColumn);
+            var field = findField(meta.entityClass(), deletedAtColumn);
             field.setAccessible(true);
             Object timestamp = field.getType() == LocalDateTime.class
                     ? LocalDateTime.now() : Instant.now();
@@ -52,7 +52,7 @@ public class SoftDeleteHandler {
         if (entity == null) return false;
 
         try {
-            var field = meta.entityClass().getDeclaredField(deletedAtColumn);
+            var field = findField(meta.entityClass(), deletedAtColumn);
             field.setAccessible(true);
             field.set(entity, null);
             entityManager.merge(entity);
@@ -61,6 +61,18 @@ public class SoftDeleteHandler {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new IllegalStateException("Cannot restore " + meta.entityName(), e);
         }
+    }
+
+    private java.lang.reflect.Field findField(Class<?> clazz, String fieldName) throws NoSuchFieldException {
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            try {
+                return current.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                current = current.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException(fieldName);
     }
 
     /**
