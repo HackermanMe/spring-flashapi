@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.webhook;
 
+import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ public final class WebhookDispatcher {
     private final Duration timeout;
     private final HttpClient httpClient;
     private final ExecutorService executor;
+    private volatile MetricsCollector metricsCollector;
 
     public WebhookDispatcher(List<String> urls, int maxRetries, int timeoutSeconds) {
         this.urls = urls != null ? List.copyOf(urls) : List.of();
@@ -39,6 +41,10 @@ public final class WebhookDispatcher {
                 .connectTimeout(timeout)
                 .build();
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
+    }
+
+    public void setMetricsCollector(MetricsCollector metricsCollector) {
+        this.metricsCollector = metricsCollector;
     }
 
     public void dispatch(EntityMetadata meta, String event, Object entity) {
@@ -80,6 +86,7 @@ public final class WebhookDispatcher {
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     log.debug("Webhook delivered: {} {} → {} ({})",
                             payload.event(), payload.entity(), url, response.statusCode());
+                    if (metricsCollector != null) metricsCollector.recordWebhookSent();
                     return;
                 }
 
@@ -93,6 +100,7 @@ public final class WebhookDispatcher {
             }
 
             if (attempt < maxRetries) {
+                if (metricsCollector != null) metricsCollector.recordWebhookRetry();
                 try {
                     Thread.sleep(Duration.ofSeconds((long) Math.pow(2, attempt)));
                 } catch (InterruptedException e) {
@@ -101,6 +109,7 @@ public final class WebhookDispatcher {
                 }
             }
         }
+        if (metricsCollector != null) metricsCollector.recordWebhookFailed();
     }
 
     private Map<String, Object> serializeEntity(EntityMetadata meta, Object entity) {

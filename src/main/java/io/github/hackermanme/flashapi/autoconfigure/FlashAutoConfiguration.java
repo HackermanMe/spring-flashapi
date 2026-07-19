@@ -6,6 +6,8 @@ import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.cache.FlashCacheManager;
 import io.github.hackermanme.flashapi.controller.FlashRouteRegistrar;
+import io.github.hackermanme.flashapi.dashboard.DashboardController;
+import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.openapi.OpenApiController;
@@ -205,6 +207,10 @@ public class FlashAutoConfiguration {
             registerOpenApiRoutes(entities);
         }
 
+        if (properties.getDashboard().isEnabled()) {
+            registerDashboardRoutes(entities);
+        }
+
         warnIfSpringSecurityMayBlock();
     }
 
@@ -280,6 +286,59 @@ public class FlashAutoConfiguration {
             throw new IllegalStateException("FlashAPI internal error: OpenAPI handler method missing", e);
         } catch (Exception e) {
             log.error("FlashAPI: failed to register OpenAPI routes", e);
+        }
+    }
+
+    private void registerDashboardRoutes(List<EntityMetadata> entities) {
+        try {
+            RequestMappingHandlerMapping handlerMapping = context.getBean(
+                    "requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
+
+            MetricsCollector metricsCollector = new MetricsCollector(
+                    entities, properties.getWebhook().getUrls());
+            // Register as singleton so GenericCrudService can use it
+            context.getAutowireCapableBeanFactory()
+                    .initializeBean(metricsCollector, "flashMetricsCollector");
+            ((org.springframework.beans.factory.config.ConfigurableListableBeanFactory)
+                    context.getAutowireCapableBeanFactory())
+                    .registerSingleton("flashMetricsCollector", metricsCollector);
+
+            GenericCrudService crudService = context.getBean(GenericCrudService.class);
+            crudService.setMetricsCollector(metricsCollector);
+
+            WebhookDispatcher webhookDispatcher = context.getBean(WebhookDispatcher.class);
+            webhookDispatcher.setMetricsCollector(metricsCollector);
+
+            DashboardController controller = new DashboardController(
+                    metricsCollector, properties.getDashboard().getRole());
+
+            String dashPath = properties.getDashboard().getPath();
+            if (dashPath.endsWith("/")) dashPath = dashPath.substring(0, dashPath.length() - 1);
+            if (!dashPath.startsWith("/")) dashPath = "/" + dashPath;
+
+            var handleMetrics = DashboardController.class.getMethod("serveMetrics",
+                    jakarta.servlet.http.HttpServletRequest.class,
+                    jakarta.servlet.http.HttpServletResponse.class);
+            var handleUi = DashboardController.class.getMethod("serveUi",
+                    jakarta.servlet.http.HttpServletRequest.class,
+                    jakarta.servlet.http.HttpServletResponse.class);
+
+            handlerMapping.registerMapping(
+                    RequestMappingInfo.paths(dashPath + "/metrics.json").methods(RequestMethod.GET).build(),
+                    controller, handleMetrics);
+            handlerMapping.registerMapping(
+                    RequestMappingInfo.paths(dashPath).methods(RequestMethod.GET).build(),
+                    controller, handleUi);
+            handlerMapping.registerMapping(
+                    RequestMappingInfo.paths(dashPath + "/index.html").methods(RequestMethod.GET).build(),
+                    controller, handleUi);
+
+            log.info("FlashAPI: Dashboard available at {} (role required: {})",
+                    dashPath, properties.getDashboard().getRole());
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("FlashAPI internal error: Dashboard handler method missing", e);
+        } catch (Exception e) {
+            log.error("FlashAPI: failed to register dashboard routes", e);
         }
     }
 

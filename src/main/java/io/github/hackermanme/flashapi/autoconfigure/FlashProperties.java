@@ -23,6 +23,7 @@ public class FlashProperties {
     private OpenApiProperties openapi = new OpenApiProperties();
     private TenantProperties tenant = new TenantProperties();
     private WebhookProperties webhook = new WebhookProperties();
+    private DashboardProperties dashboard = new DashboardProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -56,6 +57,9 @@ public class FlashProperties {
 
     public WebhookProperties getWebhook() { return webhook; }
     public void setWebhook(WebhookProperties webhook) { this.webhook = webhook; }
+
+    public DashboardProperties getDashboard() { return dashboard; }
+    public void setDashboard(DashboardProperties dashboard) { this.dashboard = dashboard; }
 
     public static class BulkProperties {
         private int maxItems = 100;
@@ -120,6 +124,21 @@ public class FlashProperties {
 
         public int getTimeoutSeconds() { return timeoutSeconds; }
         public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+    }
+
+    public static class DashboardProperties {
+        private boolean enabled = false;
+        private String path = "/api/dashboard";
+        private String role = "ADMIN";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+        public String getPath() { return path; }
+        public void setPath(String path) { this.path = path; }
+
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
     }
 
     public static class OpenApiProperties {

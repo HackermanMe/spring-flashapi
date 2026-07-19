@@ -1,6 +1,7 @@
 package io.github.hackermanme.flashapi.service;
 
 import io.github.hackermanme.flashapi.audit.AuditService;
+import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
@@ -28,6 +29,7 @@ public class GenericCrudService {
     private final SoftDeleteHandler softDeleteHandler;
     private final TenantHandler tenantHandler;
     private final WebhookDispatcher webhookDispatcher;
+    private volatile MetricsCollector metricsCollector;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
                               SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler,
@@ -37,6 +39,18 @@ public class GenericCrudService {
         this.softDeleteHandler = softDeleteHandler;
         this.tenantHandler = tenantHandler;
         this.webhookDispatcher = webhookDispatcher;
+    }
+
+    public void setMetricsCollector(MetricsCollector metricsCollector) {
+        this.metricsCollector = metricsCollector;
+    }
+
+    private void recordMetric(String entityName, String operation) {
+        if (metricsCollector != null) metricsCollector.recordOperation(entityName, operation);
+    }
+
+    private void recordMetric(String entityName, String operation, String entityId) {
+        if (metricsCollector != null) metricsCollector.recordOperation(entityName, operation, entityId);
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +87,7 @@ public class GenericCrudService {
         typed.setFirstResult((int) pageable.getOffset());
         typed.setMaxResults(pageable.getPageSize());
 
+        recordMetric(meta.entityName(), searchTerm != null ? "SEARCH" : "READ");
         return new PageImpl<>(typed.getResultList(), pageable, total);
     }
 
@@ -114,6 +129,7 @@ public class GenericCrudService {
         entityManager.flush();
         auditService.logCreate(meta, instance);
         webhookDispatcher.dispatch(meta, "CREATE", instance);
+        recordMetric(meta.entityName(), "CREATE");
         return instance;
     }
 
@@ -139,6 +155,7 @@ public class GenericCrudService {
         }
 
         webhookDispatcher.dispatch(meta, "UPDATE", merged);
+        recordMetric(meta.entityName(), "UPDATE");
         return Optional.of(merged);
     }
 
@@ -153,12 +170,16 @@ public class GenericCrudService {
         if (meta.softDelete()) {
             Object realId = extractPrimaryKey(meta, instance);
             boolean deleted = softDeleteHandler.softDelete(meta, realId);
-            if (deleted) webhookDispatcher.dispatch(meta, "DELETE", instance);
+            if (deleted) {
+                webhookDispatcher.dispatch(meta, "DELETE", instance);
+                recordMetric(meta.entityName(), "DELETE");
+            }
             return deleted;
         }
 
         auditService.logDelete(meta, instance);
         webhookDispatcher.dispatch(meta, "DELETE", instance);
+        recordMetric(meta.entityName(), "DELETE");
         entityManager.remove(instance);
         entityManager.flush();
         return true;
