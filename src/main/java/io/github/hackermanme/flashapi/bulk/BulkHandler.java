@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.bulk;
 
+import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
@@ -14,10 +15,15 @@ public final class BulkHandler {
 
     private final GenericCrudService crudService;
     private final int maxItems;
+    private volatile MetricsCollector metricsCollector;
 
     public BulkHandler(GenericCrudService crudService, int maxItems) {
         this.crudService = crudService;
         this.maxItems = maxItems;
+    }
+
+    public void setMetricsCollector(MetricsCollector metricsCollector) {
+        this.metricsCollector = metricsCollector;
     }
 
     public BulkResponse bulkCreate(EntityMetadata meta, List<Map<String, Object>> items) {
@@ -35,6 +41,7 @@ public final class BulkHandler {
 
         log.info("FlashAPI: bulk create {} — {}/{} succeeded",
                 meta.entityName(), results.stream().filter(r -> r.error() == null).count(), items.size());
+        recordBulk(meta.entityName());
         return BulkResponse.from(results);
     }
 
@@ -68,6 +75,7 @@ public final class BulkHandler {
 
         log.info("FlashAPI: bulk update {} — {}/{} succeeded",
                 meta.entityName(), results.stream().filter(r -> r.error() == null).count(), items.size());
+        recordBulk(meta.entityName());
         return BulkResponse.from(results);
     }
 
@@ -92,7 +100,15 @@ public final class BulkHandler {
 
         log.info("FlashAPI: bulk delete {} — {}/{} succeeded",
                 meta.entityName(), results.stream().filter(r -> r.error() == null).count(), ids.size());
+        recordBulk(meta.entityName());
         return BulkResponse.from(results);
+    }
+
+    private void recordBulk(String entityName) {
+        MetricsCollector mc = this.metricsCollector;
+        if (mc != null) {
+            mc.recordOperation(entityName, "BULK");
+        }
     }
 
     private void validateSize(List<?> items) {

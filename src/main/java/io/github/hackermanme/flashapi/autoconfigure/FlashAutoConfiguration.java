@@ -306,6 +306,9 @@ public class FlashAutoConfiguration {
             GenericCrudService crudService = context.getBean(GenericCrudService.class);
             crudService.setMetricsCollector(metricsCollector);
 
+            BulkHandler bulkHandler = context.getBean(BulkHandler.class);
+            bulkHandler.setMetricsCollector(metricsCollector);
+
             WebhookDispatcher webhookDispatcher = context.getBean(WebhookDispatcher.class);
             webhookDispatcher.setMetricsCollector(metricsCollector);
 
