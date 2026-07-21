@@ -22,6 +22,7 @@ Thumbs.db
 ROADMAP.md
 TODO.md
 NOTES.md
+docs/ecosystem-spec.md
 
 # Environment / secrets
 .env
