@@ -235,17 +235,33 @@ private LocalDateTime updatedAt;
 
 ### `@FlashWriteOnly`
 
-Field is accepted in POST/PUT request bodies but never included in responses. Use for sensitive data.
+Field is accepted in POST/PUT request bodies but never included in responses. Use for sensitive data (passport numbers, CNI, secrets).
 
 ```java
 @FlashWriteOnly
-private String password;
+private String numeroCni;
 ```
+
+**Attributes:**
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `password` | boolean | `false` | When `true`, the value is automatically hashed with BCrypt before persistence |
+
+**Password hashing example:**
+
+```java
+@FlashWriteOnly(password = true)
+private String motDePasse;
+```
+
+With `password = true`, when a user sends `"motDePasse": "secret123"` in a POST or PUT, FlashAPI automatically hashes it with BCrypt before saving. The hash is stored, never the plain text. Requires `spring-boot-starter-security` on the classpath.
 
 **Behavior:**
 - GET responses: excluded
-- POST body: accepted
-- PUT body: accepted
+- POST body: accepted (hashed if `password=true`)
+- PUT body: accepted (hashed if `password=true`)
+- Export: excluded
 
 ### `@FlashHidden`
 
@@ -344,7 +360,7 @@ public class User {
 
     private String username;
 
-    @FlashWriteOnly
+    @FlashWriteOnly(password = true)
     private String password;
 
     @FlashReadOnly

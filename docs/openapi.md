@@ -174,6 +174,84 @@ openapi-generator generate -i openapi.json -g kotlin -o client/
 
 Any generator that accepts OpenAPI 3.0.x input works: `typescript-fetch`, `python`, `go`, `swift5`, `csharp`, `rust`, `dart`, etc. See the [full list](https://openapi-generator.tech/docs/generators).
 
+## Custom Controllers (Auth, etc.)
+
+FlashAPI's built-in OpenAPI documents **only** the endpoints it generates from `@FlashEntity` classes. Your hand-written controllers (`AuthController`, custom endpoints) are NOT automatically included in FlashAPI's Swagger UI.
+
+### Making custom controllers appear in Swagger
+
+To have both FlashAPI-generated endpoints AND your custom controllers in a single Swagger UI, add **springdoc-openapi** alongside FlashAPI:
+
+**Maven:**
+
+```xml
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.8.6</version>
+</dependency>
+```
+
+**Gradle:**
+
+```kotlin
+implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
+```
+
+springdoc automatically scans all `@RestController` classes and documents them at `/swagger-ui.html` (or `/v3/api-docs`). Your `AuthController`, health endpoints, or any custom controllers appear there with zero extra configuration.
+
+### Example: AuthController with Swagger annotations
+
+```java
+@RestController
+@RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "Login and registration endpoints")
+public class AuthController {
+
+    @Operation(summary = "Register a new user")
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) { ... }
+
+    @Operation(summary = "Login and receive JWT token")
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest request) { ... }
+}
+```
+
+The `@Tag` and `@Operation` annotations are from `io.swagger.v3.oas.annotations` (included transitively by springdoc).
+
+### Securing custom controllers
+
+Custom controllers are secured via Spring Security's `SecurityFilterChain`, not via `@FlashSecured`:
+
+```java
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/auth/**").permitAll()     // Auth endpoints open
+            .requestMatchers("/api/docs/**").permitAll()     // FlashAPI Swagger UI
+            .requestMatchers("/swagger-ui/**").permitAll()   // springdoc Swagger UI
+            .requestMatchers("/v3/api-docs/**").permitAll()  // springdoc spec
+            .requestMatchers("/api/dashboard/**").hasRole("ADMIN")
+            .requestMatchers("/api/**").authenticated()      // Everything else protected
+        )
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+    return http.build();
+}
+```
+
+### Summary: what documents what
+
+| Endpoint type | Documented by | Secured by |
+|---------------|---------------|------------|
+| `@FlashEntity` endpoints | FlashAPI's built-in OpenAPI (`/api/docs`) | `@FlashSecured` + Spring Security |
+| Custom `@RestController` | springdoc-openapi (`/swagger-ui.html`) | Spring Security's `SecurityFilterChain` |
+| Both together | springdoc (it can merge both, see below) | Both mechanisms work in parallel |
+
+---
+
 ## Integration with springdoc-openapi
 
 FlashAPI's OpenAPI documentation is completely independent of springdoc-openapi. Both can coexist in the same application without conflict.
@@ -248,7 +326,7 @@ This means:
 ## FAQ
 
 **Q: Can I add custom endpoints to the generated spec?**
-A: Not directly. FlashAPI only documents its own generated endpoints. For custom controllers, use springdoc-openapi alongside FlashAPI (see integration section above).
+A: Not directly. FlashAPI only documents its own generated endpoints. For custom controllers (AuthController, etc.), add springdoc-openapi — it automatically detects all `@RestController` classes. See the "Custom Controllers" section above.
 
 **Q: Is the spec regenerated on every request?**
 A: No. The spec is built once at startup. The JSON string is lazily serialized on first request and cached. There is no per-request cost.

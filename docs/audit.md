@@ -387,6 +387,53 @@ Table: `flash_audit_log`
 
 ---
 
+## Auto-fill `@CreatedBy` / `@LastModifiedBy`
+
+FlashAPI automatically fills fields annotated with Spring Data's `@CreatedBy` and `@LastModifiedBy` from the authenticated user in the `SecurityContextHolder`. No `AuditorAware` bean or `@EnableJpaAuditing` required.
+
+### How it works
+
+When FlashAPI processes a `create()` or `update()` operation:
+
+1. It checks if Spring Security is on the classpath
+2. It reads `SecurityContextHolder.getContext().getAuthentication().getName()`
+3. It sets the value on any `String` field annotated with `@CreatedBy` (on create) or `@LastModifiedBy` (on create and update)
+
+### Example
+
+```java
+@MappedSuperclass
+public abstract class BaseEntity {
+
+    @CreatedBy
+    @Column(updatable = false)
+    private String createdBy;
+
+    @LastModifiedBy
+    private String updatedBy;
+}
+```
+
+When a user authenticated as `admin@ecole.com` creates an entity via `POST /api/eleves`:
+- `createdBy` → `"admin@ecole.com"`
+- `updatedBy` → `"admin@ecole.com"`
+
+When the same user updates via `PUT /api/eleves/{id}`:
+- `createdBy` → unchanged
+- `updatedBy` → `"admin@ecole.com"`
+
+### Conditions
+
+| Condition | Behavior |
+|-----------|----------|
+| Spring Security absent | Fields stay untouched (use `@PrePersist` defaults) |
+| No authentication (anonymous) | Fields stay untouched |
+| User authenticated | Fields filled with `authentication.getName()` |
+
+This works with any Spring Security authentication mechanism (JWT, OAuth2, session, LDAP).
+
+---
+
 ## FAQ
 
 **Q: Can I disable audit for a single entity without disabling it globally?**

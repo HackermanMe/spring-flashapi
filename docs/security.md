@@ -307,6 +307,27 @@ public class MyUserDetailsService implements UserDetailsService {
 
 ---
 
+## Custom Controllers vs @FlashSecured
+
+`@FlashSecured` only applies to FlashAPI-generated endpoints. Your hand-written controllers (`AuthController`, custom REST endpoints) are secured exclusively via Spring Security's `SecurityFilterChain`:
+
+```java
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/auth/**").permitAll()  // Your auth controller
+            .requestMatchers("/api/**").authenticated()   // FlashAPI + other endpoints
+        )
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+    return http.build();
+}
+```
+
+For documentation, custom controllers are detected by springdoc-openapi (not by FlashAPI's built-in OpenAPI). See [openapi.md — Custom Controllers](openapi.md#custom-controllers-auth-etc) for setup details.
+
+---
+
 ## Entities Without @FlashSecured
 
 Entities that do NOT have `@FlashSecured` are **completely open** — no authentication or authorization check is performed by FlashAPI. This is the default behavior and the zero-config experience.
