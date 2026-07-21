@@ -10,11 +10,14 @@ import io.github.hackermanme.flashapi.webhook.WebhookDispatcher;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 /**
@@ -125,6 +128,7 @@ public class GenericCrudService {
         tenantHandler.injectTenant(meta, mutableData);
         Object instance = instantiate(meta);
         applyFields(instance, meta.creatableFields(), mutableData);
+        fillAuditFields(instance, true);
         entityManager.persist(instance);
         entityManager.flush();
         auditService.logCreate(meta, instance);
@@ -145,6 +149,7 @@ public class GenericCrudService {
         Map<String, Object> beforeSnapshot = meta.auditTrackFields() ? snapshot(meta, instance) : null;
 
         applyFields(instance, meta.updatableFields(), data);
+        fillAuditFields(instance, false);
         Object merged = entityManager.merge(instance);
         entityManager.flush();
 
@@ -326,7 +331,11 @@ public class GenericCrudService {
             if (!data.containsKey(field.name())) continue;
             Object value = data.get(field.name());
             try {
-                field.javaField().set(instance, coerce(value, field.type()));
+                Object finalValue = coerce(value, field.type());
+                if (field.password() && finalValue instanceof String raw) {
+                    finalValue = hashPassword(raw);
+                }
+                field.javaField().set(instance, finalValue);
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException("Cannot set " + field.name() + " on " + instance.getClass().getSimpleName(), e);
             }
@@ -367,4 +376,58 @@ public class GenericCrudService {
     }
 
     private record ParsedFilter(String fieldName, String operator) {}
+
+    private String hashPassword(String raw) {
+        try {
+            Class<?> encoderClass = Class.forName("org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder");
+            Object encoder = encoderClass.getDeclaredConstructor().newInstance();
+            return (String) encoderClass.getMethod("encode", CharSequence.class).invoke(encoder, raw);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    "FlashAPI: @FlashWriteOnly(password=true) requires spring-boot-starter-security on the classpath");
+        } catch (Exception e) {
+            throw new IllegalStateException("FlashAPI: failed to hash password", e);
+        }
+    }
+
+    private void fillAuditFields(Object instance, boolean isCreate) {
+        String currentUser = resolveCurrentUser();
+        if (currentUser == null) return;
+
+        Class<?> clazz = instance.getClass();
+        while (clazz != null && clazz != Object.class) {
+            for (Field field : clazz.getDeclaredFields()) {
+                boolean isCreatedBy = isCreate && field.isAnnotationPresent(CreatedBy.class);
+                boolean isModifiedBy = field.isAnnotationPresent(LastModifiedBy.class);
+                if (isCreatedBy || isModifiedBy) {
+                    field.setAccessible(true);
+                    try {
+                        if (field.getType() == String.class) {
+                            field.set(instance, currentUser);
+                        }
+                    } catch (IllegalAccessException ignored) {}
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
+    }
+
+    private String resolveCurrentUser() {
+        try {
+            Class<?> holderClass = Class.forName("org.springframework.security.core.context.SecurityContextHolder");
+            Object context = holderClass.getMethod("getContext").invoke(null);
+            Object auth = context.getClass().getMethod("getAuthentication").invoke(context);
+            if (auth == null) return null;
+            boolean authenticated = (boolean) auth.getClass().getMethod("isAuthenticated").invoke(auth);
+            if (!authenticated) return null;
+            Object name = auth.getClass().getMethod("getName").invoke(auth);
+            String username = name != null ? name.toString() : null;
+            if ("anonymousUser".equals(username)) return null;
+            return username;
+        } catch (ClassNotFoundException e) {
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

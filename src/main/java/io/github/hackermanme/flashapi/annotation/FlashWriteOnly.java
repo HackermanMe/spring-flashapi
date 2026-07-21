@@ -7,9 +7,11 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a field as write-only: accepted in POST/PUT requests, never returned in responses.
- * Typical use case: passwords, secrets, tokens submitted by the client.
+ * When password=true, the value is automatically hashed with BCrypt before persistence.
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FlashWriteOnly {
+
+    boolean password() default false;
 }

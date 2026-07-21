@@ -15,6 +15,7 @@ public record FieldMetadata(
         boolean hidden,
         boolean readOnly,
         boolean writeOnly,
+        boolean password,
         boolean exportExcluded,
         boolean nullable,
         boolean insertable,
