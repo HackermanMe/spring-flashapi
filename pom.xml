@@ -70,6 +70,14 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring WebSocket (optional — used for real-time events) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Spring Boot Autoconfigure -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

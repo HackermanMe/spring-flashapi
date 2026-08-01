@@ -57,7 +57,8 @@ DELETE /api/products/bulk                — batch delete
 - **Relations & expand** — `?expand=category,tags` to include related entities
 - **Intelligent caching** — transparent response caching with auto-invalidation on writes
 - **Rate limiting** — per-IP token bucket, configurable per entity
-- **OpenAPI documentation** — auto-generated spec + Swagger UI at `/api/docs`
+- **WebSocket real-time** — live CRUD events via raw WebSocket at `/api/ws`
+- **OpenAPI documentation** — auto-generated spec + Swagger UI at `/api/docs` (includes custom controllers)
 - **Soft delete** — timestamp-based with restore endpoint
 - **Audit trail** — who changed what, when, with field-level diffs
 - **Field visibility** — `@FlashReadOnly`, `@FlashWriteOnly`, `@FlashHidden`, `@FlashExportExclude`
@@ -221,6 +222,22 @@ flashapi:
     reports-path: flashapi/reports  # classpath location for .jrxml templates
 ```
 
+## WebSocket Real-Time Events
+
+Add `spring-boot-starter-websocket` and FlashAPI automatically broadcasts CRUD events:
+
+```javascript
+const ws = new WebSocket("ws://localhost:8080/api/ws");
+ws.onopen = () => ws.send(JSON.stringify({ action: "subscribe", topic: "/topic/entities" }));
+ws.onmessage = (e) => console.log(JSON.parse(e.data));
+// → { type: "ENTITY_CREATED", entity: "Product", data: {...}, timestamp: "..." }
+```
+
+Events: `ENTITY_CREATED`, `ENTITY_UPDATED`, `ENTITY_DELETED`, `ENTITY_RESTORED`.
+Topics: `/topic/entities` (all) or `/topic/{entity}` (specific, lowercase).
+
+See [WebSocket docs](docs/websocket.md) for configuration and security.
+
 ## Configuration
 
 Use `application.yml` or `application.properties` — both work identically.
@@ -241,6 +258,8 @@ flashapi:
     reports-path: flashapi/reports
   bulk:
     max-items: 100
+  websocket:
+    enabled: true
 ```
 
 **application.properties:**
@@ -254,6 +273,7 @@ flashapi.soft-delete.column-name=deletedAt
 flashapi.export.max-rows=0
 flashapi.export.reports-path=flashapi/reports
 flashapi.bulk.max-items=100
+flashapi.websocket.enabled=true
 ```
 
 ## Documentation
@@ -272,6 +292,7 @@ flashapi.bulk.max-items=100
 | [OpenAPI](docs/openapi.md) | Auto-generated Swagger UI & spec |
 | [Security](docs/security.md) | @FlashSecured role-based authorization |
 | [Multi-Tenancy](docs/multi-tenancy.md) | Automatic data isolation per tenant |
+| [WebSocket](docs/websocket.md) | Real-time CRUD events via raw WebSocket |
 | [Webhooks](docs/webhooks.md) | Event notifications on data changes |
 | [Cookbook](docs/cookbook.md) | CORS, security, Docker, monitoring, recipes |
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |

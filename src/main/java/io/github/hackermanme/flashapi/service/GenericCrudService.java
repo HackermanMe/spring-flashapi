@@ -33,6 +33,7 @@ public class GenericCrudService {
     private final TenantHandler tenantHandler;
     private final WebhookDispatcher webhookDispatcher;
     private volatile MetricsCollector metricsCollector;
+    private volatile FlashEventBroadcaster eventBroadcaster;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
                               SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler,
@@ -46,6 +47,25 @@ public class GenericCrudService {
 
     public void setMetricsCollector(MetricsCollector metricsCollector) {
         this.metricsCollector = metricsCollector;
+    }
+
+    public void setEventBroadcaster(FlashEventBroadcaster broadcaster) {
+        this.eventBroadcaster = broadcaster;
+    }
+
+    private void broadcastEvent(EntityMetadata meta, String action, Object entity) {
+        var broadcaster = this.eventBroadcaster;
+        if (broadcaster == null) return;
+        String eventType = switch (action) {
+            case "CREATE" -> "ENTITY_CREATED";
+            case "UPDATE" -> "ENTITY_UPDATED";
+            case "DELETE" -> "ENTITY_DELETED";
+            case "RESTORE" -> "ENTITY_RESTORED";
+            default -> null;
+        };
+        if (eventType == null) return;
+        Map<String, Object> data = serialize(meta, entity);
+        broadcaster.broadcast(meta.entityName(), eventType, data);
     }
 
     private void recordMetric(String entityName, String operation) {
@@ -133,6 +153,7 @@ public class GenericCrudService {
         entityManager.flush();
         auditService.logCreate(meta, instance);
         webhookDispatcher.dispatch(meta, "CREATE", instance);
+        broadcastEvent(meta, "CREATE", instance);
         recordMetric(meta.entityName(), "CREATE");
         return instance;
     }
@@ -160,6 +181,7 @@ public class GenericCrudService {
         }
 
         webhookDispatcher.dispatch(meta, "UPDATE", merged);
+        broadcastEvent(meta, "UPDATE", merged);
         recordMetric(meta.entityName(), "UPDATE");
         return Optional.of(merged);
     }
@@ -177,6 +199,7 @@ public class GenericCrudService {
             boolean deleted = softDeleteHandler.softDelete(meta, realId);
             if (deleted) {
                 webhookDispatcher.dispatch(meta, "DELETE", instance);
+                broadcastEvent(meta, "DELETE", instance);
                 recordMetric(meta.entityName(), "DELETE");
             }
             return deleted;
@@ -184,6 +207,7 @@ public class GenericCrudService {
 
         auditService.logDelete(meta, instance);
         webhookDispatcher.dispatch(meta, "DELETE", instance);
+        broadcastEvent(meta, "DELETE", instance);
         recordMetric(meta.entityName(), "DELETE");
         entityManager.remove(instance);
         entityManager.flush();
@@ -193,13 +217,22 @@ public class GenericCrudService {
     @Transactional
     public boolean restore(EntityMetadata meta, Object id) {
         if (!meta.softDelete()) return false;
+        Object instance;
+        Object realId;
         if (meta.hasCustomLookupField()) {
-            Object instance = findByLookupField(meta, id).orElse(null);
+            instance = findByLookupField(meta, id).orElse(null);
             if (instance == null) return false;
-            Object realId = extractPrimaryKey(meta, instance);
-            return softDeleteHandler.restore(meta, realId);
+            realId = extractPrimaryKey(meta, instance);
+        } else {
+            instance = entityManager.find(meta.entityClass(), id);
+            if (instance == null) return false;
+            realId = id;
         }
-        return softDeleteHandler.restore(meta, id);
+        boolean restored = softDeleteHandler.restore(meta, realId);
+        if (restored) {
+            broadcastEvent(meta, "RESTORE", instance);
+        }
+        return restored;
     }
 
     private Object extractPrimaryKey(EntityMetadata meta, Object instance) {
@@ -357,6 +390,29 @@ public class GenericCrudService {
             } catch (IllegalAccessException ignored) {}
         }
         return snap;
+    }
+
+    private Map<String, Object> serialize(EntityMetadata meta, Object entity) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (FieldMetadata field : meta.visibleFields()) {
+            try {
+                if (field.type().isAnnotationPresent(jakarta.persistence.Entity.class)) continue;
+                Object value = field.javaField().get(entity);
+                map.put(field.name(), toJsonSafe(value));
+            } catch (IllegalAccessException e) {
+                map.put(field.name(), null);
+            }
+        }
+        return map;
+    }
+
+    private Object toJsonSafe(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number || value instanceof Boolean || value instanceof String) return value;
+        if (value instanceof Enum<?> e) return e.name();
+        if (value instanceof java.time.temporal.Temporal) return value.toString();
+        if (value instanceof java.util.UUID) return value.toString();
+        return value.toString();
     }
 
     /**

@@ -14,7 +14,9 @@ The base path (`/api/docs`) is configurable via `flashapi.openapi.docs-path`.
 
 ## What Gets Documented
 
-The spec is built from the same `EntityMetadata` used for route registration, so it is always in sync with your actual API:
+The spec is built from the same `EntityMetadata` used for route registration **plus all detected `@RestController` classes**, so it is always in sync with your actual API:
+
+### @FlashEntity endpoints (auto-generated)
 
 - **CRUD operations** -- GET (list), GET by ID, POST, PUT, DELETE
 - **Pagination parameters** -- `page`, `size`, `sort`, `search`, `expand`
@@ -27,6 +29,23 @@ The spec is built from the same `EntityMetadata` used for route registration, so
 - **Required fields** -- non-nullable fields marked as `required` in create input
 - **Tags** -- operations grouped by entity name
 - **Operation IDs** -- e.g., `listProduct`, `createProduct`, `getProductById`
+
+### Custom @RestController endpoints (auto-detected)
+
+FlashAPI **automatically detects** all `@RestController` classes in your application and includes their endpoints in the same Swagger UI. No extra dependency (springdoc, etc.) is needed.
+
+What gets extracted:
+- **Path and HTTP method** -- from `@RequestMapping`, `@GetMapping`, `@PostMapping`, etc.
+- **Path parameters** -- from `@PathVariable`
+- **Query parameters** -- from `@RequestParam`
+- **Request body** -- from `@RequestBody` (DTO fields are introspected)
+- **Return type** -- from `ResponseEntity<T>` generic type (DTO fields are introspected)
+- **Tags** -- derived from controller class name (e.g., `AuthController` -> tag "Auth")
+- **Operation IDs** -- method name (e.g., `register`, `login`)
+
+Excluded from scanning:
+- FlashAPI's own internal controllers (dashboard, docs)
+- Spring's `/error` endpoint
 
 ## Configuration
 
@@ -176,49 +195,36 @@ Any generator that accepts OpenAPI 3.0.x input works: `typescript-fetch`, `pytho
 
 ## Custom Controllers (Auth, etc.)
 
-FlashAPI's built-in OpenAPI documents **only** the endpoints it generates from `@FlashEntity` classes. Your hand-written controllers (`AuthController`, custom endpoints) are NOT automatically included in FlashAPI's Swagger UI.
+FlashAPI **automatically detects and documents** all `@RestController` classes in the same Swagger UI. No extra dependency needed — no springdoc, no swagger-core, nothing to add to your pom.xml.
 
-### Making custom controllers appear in Swagger
+### How it works
 
-To have both FlashAPI-generated endpoints AND your custom controllers in a single Swagger UI, add **springdoc-openapi** alongside FlashAPI:
+At startup, FlashAPI scans all registered `@RestController` beans (excluding its own internal controllers). It extracts:
+- Path mappings and HTTP methods
+- `@PathVariable` and `@RequestParam` parameters
+- `@RequestBody` DTO type (fields introspected via reflection)
+- Return type from `ResponseEntity<T>` (fields introspected via reflection)
 
-**Maven:**
-
-```xml
-<dependency>
-    <groupId>org.springdoc</groupId>
-    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    <version>2.8.6</version>
-</dependency>
-```
-
-**Gradle:**
-
-```kotlin
-implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
-```
-
-springdoc automatically scans all `@RestController` classes and documents them at `/swagger-ui.html` (or `/v3/api-docs`). Your `AuthController`, health endpoints, or any custom controllers appear there with zero extra configuration.
-
-### Example: AuthController with Swagger annotations
+### Example: AuthController
 
 ```java
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "Login and registration endpoints")
 public class AuthController {
 
-    @Operation(summary = "Register a new user")
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) { ... }
+    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) { ... }
 
-    @Operation(summary = "Login and receive JWT token")
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest request) { ... }
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) { ... }
 }
 ```
 
-The `@Tag` and `@Operation` annotations are from `io.swagger.v3.oas.annotations` (included transitively by springdoc).
+This produces in `/api/docs`:
+- `POST /api/auth/register` — tag "Auth", request body schema from `RegisterRequest`, response schema from `AuthResponse`
+- `POST /api/auth/login` — tag "Auth", request body schema from `LoginRequest`, response schema from `AuthResponse`
+
+No annotations from `io.swagger.v3` needed. Just standard Spring annotations.
 
 ### Securing custom controllers
 
@@ -232,8 +238,6 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/auth/**").permitAll()     // Auth endpoints open
             .requestMatchers("/api/docs/**").permitAll()     // FlashAPI Swagger UI
-            .requestMatchers("/swagger-ui/**").permitAll()   // springdoc Swagger UI
-            .requestMatchers("/v3/api-docs/**").permitAll()  // springdoc spec
             .requestMatchers("/api/dashboard/**").hasRole("ADMIN")
             .requestMatchers("/api/**").authenticated()      // Everything else protected
         )
@@ -246,71 +250,10 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
 | Endpoint type | Documented by | Secured by |
 |---------------|---------------|------------|
-| `@FlashEntity` endpoints | FlashAPI's built-in OpenAPI (`/api/docs`) | `@FlashSecured` + Spring Security |
-| Custom `@RestController` | springdoc-openapi (`/swagger-ui.html`) | Spring Security's `SecurityFilterChain` |
-| Both together | springdoc (it can merge both, see below) | Both mechanisms work in parallel |
+| `@FlashEntity` endpoints | FlashAPI OpenAPI (`/api/docs`) | `@FlashSecured` + Spring Security |
+| Custom `@RestController` | FlashAPI OpenAPI (`/api/docs`) | Spring Security's `SecurityFilterChain` |
 
----
-
-## Integration with springdoc-openapi
-
-FlashAPI's OpenAPI documentation is completely independent of springdoc-openapi. Both can coexist in the same application without conflict.
-
-### Side-by-side setup
-
-| Concern | FlashAPI | springdoc-openapi |
-|---------|----------|-------------------|
-| Default UI path | `/api/docs` | `/swagger-ui.html` |
-| Spec path | `/api/docs/openapi.json` | `/v3/api-docs` |
-| Source | `@FlashEntity`-annotated entities | `@RestController`-annotated classes |
-| Dependencies | None (built-in) | `springdoc-openapi-starter-webmvc-ui` |
-
-### Merging both specs
-
-If you want a single unified spec (FlashAPI entities + hand-written controllers), disable FlashAPI's built-in docs and feed its spec into springdoc:
-
-1. Disable FlashAPI's UI:
-
-```yaml
-flashapi:
-  openapi:
-    enabled: false
-```
-
-2. Expose FlashAPI's spec as a springdoc `GroupedOpenApi`:
-
-```java
-@Bean
-public GroupedOpenApi flashApiGroup(FlashProperties props, List<EntityMetadata> entities) {
-    OpenApiGenerator gen = new OpenApiGenerator(props, entities);
-    Map<String, Object> spec = gen.generate();
-    // Convert to springdoc's OpenAPI model or use OpenApiCustomizer
-    return GroupedOpenApi.builder()
-            .group("flash")
-            .addOpenApiCustomizer(openApi -> {
-                // Merge paths and schemas from FlashAPI spec into openApi
-            })
-            .build();
-}
-```
-
-Alternatively, simply link to both UIs from your application landing page -- most teams find separate specs easier to maintain.
-
-### Using springdoc only
-
-To disable FlashAPI docs entirely and rely on springdoc:
-
-```yaml
-# application.yml
-flashapi:
-  openapi:
-    enabled: false
-```
-
-```properties
-# application.properties
-flashapi.openapi.enabled=false
-```
+Everything in one place. One Swagger UI. Zero extra dependencies.
 
 ## Swagger UI CDN Details
 
@@ -325,8 +268,8 @@ This means:
 
 ## FAQ
 
-**Q: Can I add custom endpoints to the generated spec?**
-A: Not directly. FlashAPI only documents its own generated endpoints. For custom controllers (AuthController, etc.), add springdoc-openapi — it automatically detects all `@RestController` classes. See the "Custom Controllers" section above.
+**Q: Are my custom @RestController endpoints included?**
+A: Yes. FlashAPI automatically detects all `@RestController` classes in your application and includes them in the same spec. No extra dependency needed.
 
 **Q: Is the spec regenerated on every request?**
 A: No. The spec is built once at startup. The JSON string is lazily serialized on first request and cached. There is no per-request cost.

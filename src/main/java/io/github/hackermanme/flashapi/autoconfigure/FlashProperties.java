@@ -24,6 +24,7 @@ public class FlashProperties {
     private TenantProperties tenant = new TenantProperties();
     private WebhookProperties webhook = new WebhookProperties();
     private DashboardProperties dashboard = new DashboardProperties();
+    private WebSocketProperties websocket = new WebSocketProperties();
 
     public String getBasePath() { return basePath; }
     public void setBasePath(String basePath) { this.basePath = basePath; }
@@ -60,6 +61,9 @@ public class FlashProperties {
 
     public DashboardProperties getDashboard() { return dashboard; }
     public void setDashboard(DashboardProperties dashboard) { this.dashboard = dashboard; }
+
+    public WebSocketProperties getWebsocket() { return websocket; }
+    public void setWebsocket(WebSocketProperties websocket) { this.websocket = websocket; }
 
     public static class BulkProperties {
         private int maxItems = 100;
@@ -139,6 +143,13 @@ public class FlashProperties {
 
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
+    }
+
+    public static class WebSocketProperties {
+        private boolean enabled = true;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
     }
 
     public static class OpenApiProperties {

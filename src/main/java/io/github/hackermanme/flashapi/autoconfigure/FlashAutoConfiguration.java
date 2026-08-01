@@ -10,6 +10,8 @@ import io.github.hackermanme.flashapi.dashboard.DashboardController;
 import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
+import io.github.hackermanme.flashapi.openapi.ControllerEndpoint;
+import io.github.hackermanme.flashapi.openapi.ControllerScanner;
 import io.github.hackermanme.flashapi.openapi.OpenApiController;
 import io.github.hackermanme.flashapi.openapi.OpenApiGenerator;
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
@@ -39,8 +41,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Configuration
 @EnableConfigurationProperties(FlashProperties.class)
@@ -211,7 +215,19 @@ public class FlashAutoConfiguration {
             registerDashboardRoutes(entities);
         }
 
+        wireWebSocketHandler();
         warnIfSpringSecurityMayBlock();
+    }
+
+    private void wireWebSocketHandler() {
+        try {
+            var broadcaster = context.getBean(
+                    io.github.hackermanme.flashapi.service.FlashEventBroadcaster.class);
+            GenericCrudService crudService = context.getBean(GenericCrudService.class);
+            crudService.setEventBroadcaster(broadcaster);
+            log.info("FlashAPI: WebSocket broadcasting enabled");
+        } catch (Exception ignored) {
+        }
     }
 
     private void warnIfSpringSecurityMayBlock() {
@@ -255,7 +271,13 @@ public class FlashAutoConfiguration {
             RequestMappingHandlerMapping handlerMapping = context.getBean(
                     "requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
 
-            OpenApiGenerator generator = new OpenApiGenerator(properties, entities);
+            List<ControllerEndpoint> controllerEndpoints = scanCustomControllers(handlerMapping);
+            if (!controllerEndpoints.isEmpty()) {
+                log.info("FlashAPI: detected {} custom controller endpoint(s) for OpenAPI documentation",
+                        controllerEndpoints.size());
+            }
+
+            OpenApiGenerator generator = new OpenApiGenerator(properties, entities, controllerEndpoints);
             Map<String, Object> spec = generator.generate();
             OpenApiController controller = new OpenApiController(spec);
 
@@ -343,6 +365,20 @@ public class FlashAutoConfiguration {
         } catch (Exception e) {
             log.error("FlashAPI: failed to register dashboard routes", e);
         }
+    }
+
+    private List<ControllerEndpoint> scanCustomControllers(RequestMappingHandlerMapping handlerMapping) {
+        Set<String> excludedPrefixes = new LinkedHashSet<>();
+        String docsPath = properties.getOpenapi().getDocsPath();
+        if (!docsPath.startsWith("/")) docsPath = "/" + docsPath;
+        excludedPrefixes.add(docsPath);
+        String dashPath = properties.getDashboard().getPath();
+        if (!dashPath.startsWith("/")) dashPath = "/" + dashPath;
+        excludedPrefixes.add(dashPath);
+        excludedPrefixes.add("/error");
+
+        ControllerScanner scanner = new ControllerScanner(handlerMapping, excludedPrefixes);
+        return scanner.scan();
     }
 
     private boolean isSpringSecurityPresent() {

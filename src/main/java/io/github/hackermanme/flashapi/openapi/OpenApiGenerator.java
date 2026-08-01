@@ -15,19 +15,160 @@ public final class OpenApiGenerator {
 
     private final FlashProperties properties;
     private final List<EntityMetadata> entities;
+    private final List<ControllerEndpoint> controllerEndpoints;
 
     public OpenApiGenerator(FlashProperties properties, List<EntityMetadata> entities) {
+        this(properties, entities, List.of());
+    }
+
+    public OpenApiGenerator(FlashProperties properties, List<EntityMetadata> entities,
+                            List<ControllerEndpoint> controllerEndpoints) {
         this.properties = properties;
         this.entities = entities;
+        this.controllerEndpoints = controllerEndpoints;
     }
 
     public Map<String, Object> generate() {
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("openapi", "3.0.3");
         spec.put("info", buildInfo());
-        spec.put("paths", buildPaths());
-        spec.put("components", Map.of("schemas", buildSchemas()));
+
+        Map<String, Object> paths = buildPaths();
+        Map<String, Object> schemas = buildSchemas();
+
+        if (!controllerEndpoints.isEmpty()) {
+            mergeControllerPaths(paths, schemas);
+        }
+
+        spec.put("paths", paths);
+        spec.put("components", Map.of("schemas", schemas));
+
+        if (!controllerEndpoints.isEmpty()) {
+            spec.put("tags", buildTags());
+        }
+
         return spec;
+    }
+
+    private void mergeControllerPaths(Map<String, Object> paths, Map<String, Object> schemas) {
+        for (ControllerEndpoint endpoint : controllerEndpoints) {
+            String path = endpoint.path();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> pathItem = (Map<String, Object>) paths.computeIfAbsent(path, k -> new LinkedHashMap<>());
+            pathItem.put(endpoint.httpMethod(), buildControllerOperation(endpoint, schemas));
+        }
+    }
+
+    private Map<String, Object> buildControllerOperation(ControllerEndpoint endpoint, Map<String, Object> schemas) {
+        Map<String, Object> op = new LinkedHashMap<>();
+        op.put("summary", endpoint.summary());
+        op.put("operationId", endpoint.operationId());
+        op.put("tags", List.of(endpoint.tag()));
+
+        if (!endpoint.parameters().isEmpty()) {
+            List<Map<String, Object>> params = new ArrayList<>();
+            for (ControllerEndpoint.EndpointParameter p : endpoint.parameters()) {
+                Map<String, Object> param = new LinkedHashMap<>();
+                param.put("name", p.name());
+                param.put("in", p.in());
+                param.put("required", p.required());
+                param.put("schema", Map.of("type", mapJavaType(p.type())));
+                if (p.defaultValue() != null) {
+                    param.put("example", p.defaultValue());
+                }
+                params.add(param);
+            }
+            op.put("parameters", params);
+        }
+
+        if (endpoint.requestBodyType() != null) {
+            String schemaName = endpoint.requestBodyType().getSimpleName();
+            schemas.computeIfAbsent(schemaName, k -> buildDtoSchema(endpoint.requestBodyType()));
+            op.put("requestBody", Map.of(
+                    "required", true,
+                    "content", jsonContent(ref(schemaName))
+            ));
+        }
+
+        Map<String, Object> responses = new LinkedHashMap<>();
+        if (endpoint.returnType() != null) {
+            String returnSchemaName = endpoint.returnType().getSimpleName();
+            schemas.computeIfAbsent(returnSchemaName, k -> buildDtoSchema(endpoint.returnType()));
+            responses.put("200", Map.of(
+                    "description", "Success",
+                    "content", jsonContent(ref(returnSchemaName))
+            ));
+        } else {
+            responses.put("200", Map.of("description", "Success"));
+        }
+        op.put("responses", responses);
+
+        return op;
+    }
+
+    private Map<String, Object> buildDtoSchema(Class<?> dtoClass) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        Map<String, Object> props = new LinkedHashMap<>();
+
+        for (java.lang.reflect.Field field : getAllFields(dtoClass)) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
+            if (field.isSynthetic()) continue;
+            Map<String, Object> fieldSchema = new LinkedHashMap<>();
+            fieldSchema.put("type", mapJavaType(field.getType()));
+            String format = mapJavaFormat(field.getType());
+            if (format != null) fieldSchema.put("format", format);
+            if (field.getType().isEnum()) {
+                List<String> values = new ArrayList<>();
+                for (Object c : field.getType().getEnumConstants()) {
+                    values.add(((Enum<?>) c).name());
+                }
+                fieldSchema.put("enum", values);
+            }
+            if (field.getType() == List.class || field.getType() == Set.class || field.getType() == Collection.class) {
+                fieldSchema.put("type", "array");
+                java.lang.reflect.Type generic = field.getGenericType();
+                if (generic instanceof java.lang.reflect.ParameterizedType pt) {
+                    java.lang.reflect.Type[] args = pt.getActualTypeArguments();
+                    if (args.length > 0 && args[0] instanceof Class<?> itemClass) {
+                        fieldSchema.put("items", Map.of("type", mapJavaType(itemClass)));
+                    } else {
+                        fieldSchema.put("items", Map.of("type", "string"));
+                    }
+                } else {
+                    fieldSchema.put("items", Map.of("type", "string"));
+                }
+            }
+            props.put(field.getName(), fieldSchema);
+        }
+
+        schema.put("properties", props);
+        return schema;
+    }
+
+    private List<java.lang.reflect.Field> getAllFields(Class<?> cls) {
+        List<java.lang.reflect.Field> fields = new ArrayList<>();
+        Class<?> current = cls;
+        while (current != null && current != Object.class) {
+            fields.addAll(Arrays.asList(current.getDeclaredFields()));
+            current = current.getSuperclass();
+        }
+        return fields;
+    }
+
+    private List<Map<String, Object>> buildTags() {
+        Set<String> tags = new LinkedHashSet<>();
+        for (EntityMetadata meta : entities) {
+            tags.add(meta.entityName());
+        }
+        for (ControllerEndpoint endpoint : controllerEndpoints) {
+            tags.add(endpoint.tag());
+        }
+        List<Map<String, Object>> tagList = new ArrayList<>();
+        for (String tag : tags) {
+            tagList.add(Map.of("name", tag));
+        }
+        return tagList;
     }
 
     private Map<String, Object> buildInfo() {
