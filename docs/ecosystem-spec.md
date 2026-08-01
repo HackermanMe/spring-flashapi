@@ -175,16 +175,23 @@ Si aucun opérateur n'est spécifié, `eq` est utilisé par défaut.
 ## WebSocket Contract (temps réel frontend)
 
 ### Connection endpoint
-- URL: `/ws` (STOMP over SockJS)
+- URL: `/api/ws` (raw WebSocket, pas de lib tierce requise côté client)
+- Le client se connecte avec `new WebSocket("ws://host/api/ws")` — fonctionne en natif dans tout navigateur et runtime JS/TS.
 
-### Topics
+### Subscribe/Unsubscribe (client → serveur)
+
+```json
+{"action": "subscribe", "topic": "/topic/entities"}
+{"action": "subscribe", "topic": "/topic/eleves"}
+{"action": "unsubscribe", "topic": "/topic/eleves"}
+```
 
 | Topic | Description |
 |-------|-------------|
-| `/topic/entities` | Tous les événements CRUD |
-| `/topic/{entity}` | Événements pour une entité spécifique |
+| `/topic/entities` | Tous les événements CRUD (toutes entités) |
+| `/topic/{entity}` | Événements pour une entité spécifique (nom en minuscule) |
 
-### Message format
+### Event messages (serveur → client)
 
 ```json
 {
@@ -196,6 +203,13 @@ Si aucun opérateur n'est spécifié, `eq` est utilisé par défaut.
 ```
 
 Event types: `ENTITY_CREATED`, `ENTITY_UPDATED`, `ENTITY_DELETED`, `ENTITY_RESTORED`
+
+### Comportement
+- Le serveur ne push rien tant que le client n'a pas souscrit à au moins un topic
+- Un client peut souscrire à plusieurs topics simultanément
+- La déconnexion du client nettoie automatiquement toutes ses souscriptions
+- Les messages sont envoyés à tous les subscribers du topic concerné
+- Pas de garantie d'ordre (best-effort delivery, pas de file d'attente)
 
 ---
 
