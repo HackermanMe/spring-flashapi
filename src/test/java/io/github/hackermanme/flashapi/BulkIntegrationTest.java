@@ -36,14 +36,14 @@ class BulkIntegrationTest {
                                 {"name": "Tablet", "price": 399.99, "stock": 75}
                             ]
                             """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(3))
-                .andExpect(jsonPath("$.failed").value(0))
-                .andExpect(jsonPath("$.results", hasSize(3)))
-                .andExpect(jsonPath("$.results[0].status").value("created"))
-                .andExpect(jsonPath("$.results[0].data.name").value("Laptop"))
-                .andExpect(jsonPath("$.results[1].data.name").value("Phone"))
-                .andExpect(jsonPath("$.results[2].data.name").value("Tablet"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.meta.succeeded").value(3))
+                .andExpect(jsonPath("$.meta.failed").value(0))
+                .andExpect(jsonPath("$.meta.total").value(3))
+                .andExpect(jsonPath("$.data", hasSize(3)))
+                .andExpect(jsonPath("$.data[0].name").value("Laptop"))
+                .andExpect(jsonPath("$.data[1].name").value("Phone"))
+                .andExpect(jsonPath("$.data[2].name").value("Tablet"));
     }
 
     @Test
@@ -57,9 +57,9 @@ class BulkIntegrationTest {
                                 {"name": null, "price": 50.00, "stock": 10}
                             ]
                             """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(2))
-                .andExpect(jsonPath("$.results[0].status").value("created"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.meta.succeeded").value(2))
+                .andExpect(jsonPath("$.meta.total").value(2));
     }
 
     @Test
@@ -74,11 +74,11 @@ class BulkIntegrationTest {
                             ]
                             """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(2))
-                .andExpect(jsonPath("$.failed").value(0))
-                .andExpect(jsonPath("$.results[0].status").value("updated"))
-                .andExpect(jsonPath("$.results[0].data.name").value("Gaming Laptop"))
-                .andExpect(jsonPath("$.results[1].data.name").value("Smartphone"));
+                .andExpect(jsonPath("$.meta.succeeded").value(2))
+                .andExpect(jsonPath("$.meta.failed").value(0))
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].name").value("Gaming Laptop"))
+                .andExpect(jsonPath("$.data[1].name").value("Smartphone"));
     }
 
     @Test
@@ -93,11 +93,8 @@ class BulkIntegrationTest {
                             ]
                             """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(1))
-                .andExpect(jsonPath("$.failed").value(1))
-                .andExpect(jsonPath("$.results[0].status").value("updated"))
-                .andExpect(jsonPath("$.results[1].status").value("error"))
-                .andExpect(jsonPath("$.results[1].error").value(containsString("Missing")));
+                .andExpect(jsonPath("$.meta.succeeded").value(1))
+                .andExpect(jsonPath("$.meta.failed").value(1));
     }
 
     @Test
@@ -111,9 +108,8 @@ class BulkIntegrationTest {
                             ]
                             """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(0))
-                .andExpect(jsonPath("$.failed").value(1))
-                .andExpect(jsonPath("$.results[0].error").value(containsString("Not found")));
+                .andExpect(jsonPath("$.meta.succeeded").value(0))
+                .andExpect(jsonPath("$.meta.failed").value(1));
     }
 
     @Test
@@ -123,10 +119,9 @@ class BulkIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("[1, 2]"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(2))
-                .andExpect(jsonPath("$.failed").value(0))
-                .andExpect(jsonPath("$.results[0].status").value("deleted"))
-                .andExpect(jsonPath("$.results[1].status").value("deleted"));
+                .andExpect(jsonPath("$.meta.succeeded").value(2))
+                .andExpect(jsonPath("$.meta.failed").value(0))
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test
@@ -136,8 +131,8 @@ class BulkIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("[998, 999]"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(0))
-                .andExpect(jsonPath("$.failed").value(2));
+                .andExpect(jsonPath("$.meta.succeeded").value(0))
+                .andExpect(jsonPath("$.meta.failed").value(2));
     }
 
     @Test
@@ -152,23 +147,20 @@ class BulkIntegrationTest {
     @Test
     @Order(9)
     void bulkDeleteRespectsSoftDelete() throws Exception {
-        // Create a product, then bulk soft-delete it
         mvc.perform(post("/api/products/bulk")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             [{"name": "Temp Product", "price": 10.00, "stock": 1}]
                             """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.results[0].data.id").exists());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data[0].id").exists());
 
-        // The product entity has softDelete=true, so bulk delete should soft-delete
         mvc.perform(delete("/api/products/bulk")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("[3]"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(1));
+                .andExpect(jsonPath("$.meta.succeeded").value(1));
 
-        // Should still be visible with ?deleted=true
         mvc.perform(get("/api/products?deleted=true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));

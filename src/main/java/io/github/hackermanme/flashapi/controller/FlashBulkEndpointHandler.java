@@ -62,8 +62,12 @@ public final class FlashBulkEndpointHandler {
             }
 
             if (rateLimiter != null && !rateLimiter.isAllowed(controller.getMetadata(), getClientIp(request))) {
+                int window = controller.getMetadata().rateLimitWindow();
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                        .body(Map.of("error", "Rate limit exceeded", "retryAfter", controller.getMetadata().rateLimitWindow()));
+                        .header("X-RateLimit-Limit", String.valueOf(controller.getMetadata().rateLimitRequests()))
+                        .header("X-RateLimit-Remaining", "0")
+                        .header("X-RateLimit-Reset", String.valueOf(window))
+                        .body(Map.of("error", "Rate limit exceeded", "status", 429, "retryAfter", window));
             }
 
             return switch (operation) {

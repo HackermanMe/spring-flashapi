@@ -71,10 +71,23 @@ public final class FlashEndpointHandler {
                 }
             }
 
-            if (rateLimiter != null && !rateLimiter.isAllowed(controller.getMetadata(), getClientIp(request))) {
-                response.setIntHeader("Retry-After", controller.getMetadata().rateLimitWindow());
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                        .body(Map.of("error", "Rate limit exceeded", "retryAfter", controller.getMetadata().rateLimitWindow()));
+            if (rateLimiter != null) {
+                String clientIp = getClientIp(request);
+                if (!rateLimiter.isAllowed(controller.getMetadata(), clientIp)) {
+                    int window = controller.getMetadata().rateLimitWindow();
+                    response.setIntHeader("Retry-After", window);
+                    response.setIntHeader("X-RateLimit-Limit", controller.getMetadata().rateLimitRequests());
+                    response.setHeader("X-RateLimit-Remaining", "0");
+                    response.setIntHeader("X-RateLimit-Reset", window);
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                            .body(Map.of("error", "Rate limit exceeded", "status", 429, "retryAfter", window));
+                }
+                int remaining = rateLimiter.getRemainingRequests(controller.getMetadata(), clientIp);
+                if (remaining >= 0) {
+                    response.setIntHeader("X-RateLimit-Limit", controller.getMetadata().rateLimitRequests());
+                    response.setIntHeader("X-RateLimit-Remaining", remaining);
+                    response.setIntHeader("X-RateLimit-Reset", controller.getMetadata().rateLimitWindow());
+                }
             }
 
             if ("export".equals(operation)) {

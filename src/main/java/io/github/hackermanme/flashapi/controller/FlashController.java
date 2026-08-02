@@ -123,7 +123,8 @@ public final class FlashController {
                 cacheManager.putInCache(metadata, "id:" + id, response);
             }
             return ResponseEntity.ok(response);
-        }).orElseGet(() -> ResponseEntity.notFound().build());
+        }).orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", metadata.entityName() + " not found", "status", 404)));
     }
 
     public ResponseEntity<Map<String, Object>> create(Map<String, Object> body) {
@@ -148,10 +149,11 @@ public final class FlashController {
         cacheManager.evict(metadata);
         return updated
                 .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, Set.of()))))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", metadata.entityName() + " not found", "status", 404)));
     }
 
-    public ResponseEntity<Void> delete(Object id) {
+    public ResponseEntity<?> delete(Object id) {
         if (!metadata.isOperationAllowed(CrudOperation.DELETE)) {
             return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
         }
@@ -161,10 +163,11 @@ public final class FlashController {
         cacheManager.evict(metadata);
         return deleted
                 ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+                : ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", metadata.entityName() + " not found", "status", 404));
     }
 
-    public ResponseEntity<Void> restore(Object id) {
+    public ResponseEntity<?> restore(Object id) {
         if (!metadata.softDelete()) {
             return ResponseEntity.badRequest().build();
         }
@@ -173,7 +176,8 @@ public final class FlashController {
                 : crudService.restore(metadata, id);
         return restored
                 ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+                : ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", metadata.entityName() + " not found", "status", 404));
     }
 
     public ResponseEntity<Map<String, Object>> history(Object id) {
@@ -181,11 +185,60 @@ public final class FlashController {
             return ResponseEntity.badRequest().build();
         }
         var entries = crudService.getHistory(metadata, id);
-        return ResponseEntity.ok(Map.of("data", entries));
+        return ResponseEntity.ok(Map.of("data", formatAuditHistory(entries)));
+    }
+
+    private List<Map<String, Object>> formatAuditHistory(List<?> rawEntries) {
+        record GroupKey(String action, String timestamp, String performedBy) {}
+        Map<GroupKey, Map<String, Map<String, Object>>> grouped = new LinkedHashMap<>();
+        List<Map<String, Object>> simpleEntries = new ArrayList<>();
+
+        for (Object raw : rawEntries) {
+            if (!(raw instanceof io.github.hackermanme.flashapi.audit.AuditEntry entry)) continue;
+            String action = entry.getAction().name();
+            String ts = entry.getTimestamp().toString();
+            String user = entry.getPerformedBy();
+
+            if (entry.getField() == null) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("action", action);
+                item.put("entityType", entry.getEntityType());
+                item.put("entityId", entry.getEntityId());
+                item.put("timestamp", ts);
+                item.put("performedBy", user);
+                item.put("changes", null);
+                simpleEntries.add(item);
+            } else {
+                GroupKey key = new GroupKey(action, ts, user);
+                grouped.computeIfAbsent(key, k -> new LinkedHashMap<>())
+                        .put(entry.getField(), Map.of("from", nullSafe(entry.getOldValue()), "to", nullSafe(entry.getNewValue())));
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>(simpleEntries);
+        for (var e : grouped.entrySet()) {
+            GroupKey key = e.getKey();
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("action", key.action());
+            item.put("entityType", metadata.entityName());
+            item.put("entityId", rawEntries.isEmpty() ? "" :
+                    ((io.github.hackermanme.flashapi.audit.AuditEntry) rawEntries.get(0)).getEntityId());
+            item.put("timestamp", key.timestamp());
+            item.put("performedBy", key.performedBy());
+            item.put("changes", e.getValue());
+            result.add(item);
+        }
+
+        result.sort((a, b) -> ((String) b.get("timestamp")).compareTo((String) a.get("timestamp")));
+        return result;
+    }
+
+    private Object nullSafe(String value) {
+        return value != null ? value : null;
     }
 
     @SuppressWarnings("unchecked")
-    public ResponseEntity<BulkResponse> bulkCreate(Object body) {
+    public ResponseEntity<?> bulkCreate(Object body) {
         if (!metadata.isOperationAllowed(CrudOperation.CREATE)) {
             return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
         }
@@ -194,11 +247,11 @@ public final class FlashController {
             return ResponseEntity.badRequest().build();
         }
         BulkResponse result = bulkHandler.bulkCreate(metadata, items);
-        return ResponseEntity.status(HttpStatus.OK).body(result);
+        return ResponseEntity.status(HttpStatus.CREATED).body(formatBulkResponse(result));
     }
 
     @SuppressWarnings("unchecked")
-    public ResponseEntity<BulkResponse> bulkUpdate(Object body) {
+    public ResponseEntity<?> bulkUpdate(Object body) {
         if (!metadata.isOperationAllowed(CrudOperation.UPDATE)) {
             return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
         }
@@ -207,11 +260,11 @@ public final class FlashController {
             return ResponseEntity.badRequest().build();
         }
         BulkResponse result = bulkHandler.bulkUpdate(metadata, items);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(formatBulkResponse(result));
     }
 
     @SuppressWarnings("unchecked")
-    public ResponseEntity<BulkResponse> bulkDelete(Object body) {
+    public ResponseEntity<?> bulkDelete(Object body) {
         if (!metadata.isOperationAllowed(CrudOperation.DELETE)) {
             return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
         }
@@ -219,7 +272,11 @@ public final class FlashController {
             return ResponseEntity.badRequest().build();
         }
         BulkResponse result = bulkHandler.bulkDelete(metadata, (List<Object>) ids);
-        return ResponseEntity.ok(result);
+        int total = result.success() + result.failed();
+        return ResponseEntity.ok(Map.of(
+                "data", List.of(),
+                "meta", Map.of("total", total, "succeeded", result.success(), "failed", result.failed())
+        ));
     }
 
     @SuppressWarnings("unchecked")
@@ -228,6 +285,18 @@ public final class FlashController {
         if (list.isEmpty()) return null;
         if (!(list.get(0) instanceof Map)) return null;
         return (List<Map<String, Object>>) body;
+    }
+
+    private Map<String, Object> formatBulkResponse(BulkResponse result) {
+        List<Map<String, Object>> data = result.results().stream()
+                .filter(r -> r.data() != null)
+                .map(r -> r.data())
+                .toList();
+        int total = result.success() + result.failed();
+        return Map.of(
+                "data", data,
+                "meta", Map.of("total", total, "succeeded", result.success(), "failed", result.failed())
+        );
     }
 
     public void export(Map<String, String> params, HttpServletResponse response) throws IOException {
