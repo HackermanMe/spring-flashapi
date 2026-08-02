@@ -22,17 +22,35 @@ All endpoints for this entity (`GET /api/products`, `GET /api/products/{id}`, `P
 - The bucket refills completely when the window elapses (sliding window reset).
 - Thread-safe: uses `ConcurrentHashMap` + `AtomicLong` with CAS -- zero allocation on the hot path after warmup.
 
-## Response Headers and Body
+## Response Headers
 
-When the limit is exceeded:
+Rate limit headers are included on **every response** when rate limiting is enabled for the entity:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 97
+X-RateLimit-Reset: 60
+```
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests allowed per window |
+| `X-RateLimit-Remaining` | Remaining requests in the current window |
+| `X-RateLimit-Reset` | Seconds until the window resets |
+
+## When the Limit is Exceeded
 
 ```http
 HTTP/1.1 429 Too Many Requests
 Retry-After: 60
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 60
 Content-Type: application/json
 
 {
   "error": "Rate limit exceeded",
+  "status": 429,
   "retryAfter": 60
 }
 ```
@@ -214,15 +232,20 @@ class RateLimitTest {
         // Entity configured with rateLimitRequests = 3
         for (int i = 0; i < 3; i++) {
             mockMvc.perform(get("/api/products"))
-                   .andExpect(status().isOk());
+                   .andExpect(status().isOk())
+                   .andExpect(header().exists("X-RateLimit-Limit"))
+                   .andExpect(header().exists("X-RateLimit-Remaining"))
+                   .andExpect(header().exists("X-RateLimit-Reset"));
         }
 
         // 4th request exceeds the limit
         mockMvc.perform(get("/api/products"))
                .andExpect(status().isTooManyRequests())
                .andExpect(jsonPath("$.error").value("Rate limit exceeded"))
+               .andExpect(jsonPath("$.status").value(429))
                .andExpect(jsonPath("$.retryAfter").value(60))
-               .andExpect(header().string("Retry-After", "60"));
+               .andExpect(header().string("Retry-After", "60"))
+               .andExpect(header().string("X-RateLimit-Remaining", "0"));
     }
 }
 ```

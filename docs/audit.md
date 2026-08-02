@@ -141,41 +141,29 @@ curl -s http://localhost:8080/api/invoices/42/history | jq .
 {
   "data": [
     {
-      "id": 7,
+      "action": "UPDATE",
       "entityType": "Invoice",
       "entityId": "42",
-      "action": "UPDATE",
-      "field": "status",
-      "oldValue": "DRAFT",
-      "newValue": "PAID",
+      "timestamp": "2026-03-20T15:30:00Z",
       "performedBy": "admin",
-      "timestamp": "2026-03-20T15:30:00Z"
+      "changes": {
+        "status": { "from": "DRAFT", "to": "PAID" },
+        "amount": { "from": "100.00", "to": "175.50" }
+      }
     },
     {
-      "id": 5,
-      "entityType": "Invoice",
-      "entityId": "42",
-      "action": "UPDATE",
-      "field": "amount",
-      "oldValue": "100.00",
-      "newValue": "150.00",
-      "performedBy": "john.doe",
-      "timestamp": "2026-03-20T14:22:00Z"
-    },
-    {
-      "id": 3,
-      "entityType": "Invoice",
-      "entityId": "42",
       "action": "CREATE",
-      "field": null,
-      "oldValue": null,
-      "newValue": null,
+      "entityType": "Invoice",
+      "entityId": "42",
+      "timestamp": "2026-03-20T10:00:00Z",
       "performedBy": "john.doe",
-      "timestamp": "2026-03-20T10:00:00Z"
+      "changes": null
     }
   ]
 }
 ```
+
+Field-level changes are **grouped by operation** (same action + timestamp + performedBy) into a single entry with a `changes` object mapping each field to `{from, to}`. Operations without field tracking (e.g., CREATE, DELETE) have `changes: null`.
 
 Entries are always ordered **most recent first**.
 

@@ -10,7 +10,7 @@ Spring FlashAPI generates bulk endpoints for every `@FlashEntity`, allowing batc
 | `PUT` | `/api/{entity}/bulk` | Update multiple entities |
 | `DELETE` | `/api/{entity}/bulk` | Delete multiple entities by ID |
 
-All bulk endpoints return HTTP 200 with a detailed per-item report, regardless of individual item success or failure.
+Bulk create returns HTTP **201 Created**. Bulk update and delete return HTTP **200 OK**.
 
 ---
 
@@ -28,17 +28,20 @@ curl -X POST http://localhost:8080/api/products/bulk \
   ]'
 ```
 
-**Response (201-style semantics, HTTP 200):**
+**Response (HTTP 201 Created):**
 
 ```json
 {
-    "success": 3,
-    "failed": 0,
-    "results": [
-        {"index": 0, "status": "created", "data": {"id": 1, "name": "Laptop", "price": 999.99, "stock": 50}},
-        {"index": 1, "status": "created", "data": {"id": 2, "name": "Phone", "price": 599.99, "stock": 100}},
-        {"index": 2, "status": "created", "data": {"id": 3, "name": "Tablet", "price": 399.99, "stock": 75}}
-    ]
+    "data": [
+        {"id": 1, "name": "Laptop", "price": 999.99, "stock": 50},
+        {"id": 2, "name": "Phone", "price": 599.99, "stock": 100},
+        {"id": 3, "name": "Tablet", "price": 399.99, "stock": 75}
+    ],
+    "meta": {
+        "total": 3,
+        "succeeded": 3,
+        "failed": 0
+    }
 }
 ```
 
@@ -57,16 +60,19 @@ curl -X PUT http://localhost:8080/api/products/bulk \
   ]'
 ```
 
-**Response:**
+**Response (HTTP 200 OK):**
 
 ```json
 {
-    "success": 2,
-    "failed": 0,
-    "results": [
-        {"index": 0, "status": "updated", "data": {"id": 1, "name": "Gaming Laptop", "price": 1499.99, "stock": 50}},
-        {"index": 1, "status": "updated", "data": {"id": 2, "name": "Phone", "price": 599.99, "stock": 200}}
-    ]
+    "data": [
+        {"id": 1, "name": "Gaming Laptop", "price": 1499.99, "stock": 50},
+        {"id": 2, "name": "Phone", "price": 599.99, "stock": 200}
+    ],
+    "meta": {
+        "total": 2,
+        "succeeded": 2,
+        "failed": 0
+    }
 }
 ```
 
@@ -82,17 +88,16 @@ curl -X DELETE http://localhost:8080/api/products/bulk \
   -d '[1, 2, 3]'
 ```
 
-**Response:**
+**Response (HTTP 200 OK):**
 
 ```json
 {
-    "success": 3,
-    "failed": 0,
-    "results": [
-        {"index": 0, "status": "deleted", "data": {"id": 1}},
-        {"index": 1, "status": "deleted", "data": {"id": 2}},
-        {"index": 2, "status": "deleted", "data": {"id": 3}}
-    ]
+    "data": [],
+    "meta": {
+        "total": 3,
+        "succeeded": 3,
+        "failed": 0
+    }
 }
 ```
 
@@ -102,32 +107,33 @@ If the entity has `softDelete = true`, bulk delete performs soft delete (same se
 
 ## Response Format
 
-All bulk operations return the same structure:
+All bulk operations return the same envelope:
 
 ```json
 {
-    "success": <int>,
-    "failed": <int>,
-    "results": [
-        {
-            "index": <int>,
-            "status": "created" | "updated" | "deleted" | "error",
-            "data": { ... } | null,
-            "error": "message" | null
-        }
-    ]
+    "data": [ ... ],
+    "meta": {
+        "total": <int>,
+        "succeeded": <int>,
+        "failed": <int>
+    }
 }
 ```
 
 | Field | Description |
 |-------|-------------|
-| `success` | Count of items that succeeded |
-| `failed` | Count of items that failed |
-| `results` | Ordered array matching input indices |
-| `results[].index` | Zero-based position in the input array |
-| `results[].status` | One of: `created`, `updated`, `deleted`, `error` |
-| `results[].data` | Serialized entity on success, `null` on error |
-| `results[].error` | Error message on failure, `null` on success |
+| `data` | Array of successfully created/updated entities (empty `[]` for delete) |
+| `meta.total` | Total items processed (`succeeded + failed`) |
+| `meta.succeeded` | Count of items that succeeded |
+| `meta.failed` | Count of items that failed |
+
+**HTTP status codes:**
+
+| Operation | Success status |
+|-----------|---------------|
+| Bulk create | `201 Created` |
+| Bulk update | `200 OK` |
+| Bulk delete | `200 OK` |
 
 ---
 
@@ -146,38 +152,23 @@ curl -X POST http://localhost:8080/api/products/bulk \
   ]'
 ```
 
-**Response:**
+**Response (HTTP 201 Created):**
 
 ```json
 {
-    "success": 2,
-    "failed": 2,
-    "results": [
-        {
-            "index": 0,
-            "status": "created",
-            "data": {"id": 4, "name": "Valid Product", "price": 29.99, "stock": 10}
-        },
-        {
-            "index": 1,
-            "status": "error",
-            "error": "name: must not be blank"
-        },
-        {
-            "index": 2,
-            "status": "created",
-            "data": {"id": 5, "name": "Another Valid", "price": 49.99, "stock": 20}
-        },
-        {
-            "index": 3,
-            "status": "error",
-            "error": "name: must not be null"
-        }
-    ]
+    "data": [
+        {"id": 4, "name": "Valid Product", "price": 29.99, "stock": 10},
+        {"id": 5, "name": "Another Valid", "price": 49.99, "stock": 20}
+    ],
+    "meta": {
+        "total": 4,
+        "succeeded": 2,
+        "failed": 2
+    }
 }
 ```
 
-Items at index 0 and 2 are committed to the database. Items at index 1 and 3 are not. There is no rollback of successful items when others fail.
+Items that succeeded are in `data`. Failed items are not included in `data` but counted in `meta.failed`. There is no rollback of successful items when others fail.
 
 ---
 
@@ -369,7 +360,7 @@ No. Each item is independent. See "Using with Transactions" above for details on
 Per request. You can send multiple bulk requests concurrently, each up to the limit.
 
 **Q: How do I know which input item caused an error?**  
-Each result in the `results` array has an `index` field matching the zero-based position in your input array.
+The `meta.failed` count tells you how many items failed. Successfully processed items appear in `data`. To identify specific failures, compare the returned `data` array with your input.
 
 **Q: Does bulk delete support soft delete?**  
 Yes. If the entity has `softDelete = true` in its `@FlashEntity` annotation, bulk delete marks items as deleted rather than removing them from the database. Each soft-deleted item can be restored individually via `POST /api/{entity}/{id}/restore`.
