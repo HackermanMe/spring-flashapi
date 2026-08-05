@@ -1,0 +1,9 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "maven",
+      "package-name": "spring-flashapi",
+      "bump-minor-pre-major": true
+    }
+  }
+}
