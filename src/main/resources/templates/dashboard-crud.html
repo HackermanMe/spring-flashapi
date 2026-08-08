@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashAPI Dev Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+        h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .subtitle { opacity: 0.9; font-size: 1.1rem; }
+
+        .grid { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; }
+
+        .sidebar {
+            background: #1e293b;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            height: fit-content;
+            position: sticky;
+            top: 2rem;
+        }
+        .sidebar h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #a78bfa;
+        }
+        .entity-list { list-style: none; }
+        .entity-item {
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            background: #334155;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .entity-item:hover { background: #475569; transform: translateX(4px); }
+        .entity-item.active { background: #6366f1; font-weight: 600; }
+        .entity-count {
+            background: #475569;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .main-content {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 1rem;
+            min-height: 600px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+        .btn-primary {
+            background: #6366f1;
+            color: white;
+        }
+        .btn-primary:hover { background: #4f46e5; transform: translateY(-2px); }
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+        .btn-secondary:hover { background: #475569; }
+
+        .search-box {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: #334155;
+            border: 2px solid #475569;
+            border-radius: 0.5rem;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+        }
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        th {
+            background: #334155;
+            font-weight: 600;
+            color: #a78bfa;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+        tr:hover td { background: #334155; }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .action-btn {
+            padding: 0.4rem 0.8rem;
+            border: none;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .action-edit { background: #3b82f6; color: white; }
+        .action-edit:hover { background: #2563eb; }
+        .action-delete { background: #ef4444; color: white; }
+        .action-delete:hover { background: #dc2626; }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #a78bfa;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: #334155;
+            border: 2px solid #475569;
+            border-radius: 0.5rem;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .console {
+            background: #0f172a;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-top: 2rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            color: #a78bfa;
+        }
+        .console-event {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid #6366f1;
+            background: #1e293b;
+            border-radius: 0.3rem;
+        }
+        .event-type {
+            color: #22d3ee;
+            font-weight: 600;
+        }
+        .event-time {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="dashboard()" x-init="init()">
+    <div class="container">
+        <header>
+            <h1>⚡ FlashAPI Dev Dashboard</h1>
+            <p class="subtitle">Interactive CRUD interface with real-time WebSocket</p>
+        </header>
+
+        <div class="grid">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <h2>Entities</h2>
+                <ul class="entity-list">
+                    <template x-for="entity in entities" :key="entity">
+                        <li class="entity-item"
+                            :class="{ 'active': currentEntity === entity }"
+                            @click="selectEntity(entity)">
+                            <span x-text="entity"></span>
+                            <span class="entity-count" x-text="counts[entity] || 0"></span>
+                        </li>
+                    </template>
+                </ul>
+            </aside>
+
+            <!-- Main content -->
+            <main class="main-content">
+                <div x-show="!currentEntity" class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                    </svg>
+                    <h2>Select an entity to get started</h2>
+                    <p>Choose from the sidebar to view and manage data</p>
+                </div>
+
+                <div x-show="currentEntity" x-cloak>
+                    <div class="toolbar">
+                        <button class="btn btn-primary" @click="openCreateModal">+ Create New</button>
+                        <input type="text"
+                               class="search-box"
+                               placeholder="Search..."
+                               x-model="search"
+                               @input.debounce.500ms="loadList()">
+                        <button class="btn btn-secondary" @click="loadList()">🔄 Refresh</button>
+                    </div>
+
+                    <div id="entity-content">
+                        <div x-show="loading" style="text-align:center; padding:2rem; color:#64748b;">Loading...</div>
+                        <div x-show="!loading && items.length === 0" class="empty-state">
+                            <p>No items found</p>
+                        </div>
+                        <table x-show="!loading && items.length > 0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <template x-for="col in columns" :key="col">
+                                        <th x-text="col"></th>
+                                    </template>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="item in items" :key="item.id">
+                                    <tr>
+                                        <td x-text="item.id"></td>
+                                        <template x-for="col in columns" :key="col">
+                                            <td x-text="formatValue(item[col])"></td>
+                                        </template>
+                                        <td class="actions">
+                                            <button class="action-btn action-edit" @click="openEditModal(item.id)">Edit</button>
+                                            <button class="action-btn action-delete" @click="deleteItem(item.id)">Delete</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- WebSocket Console -->
+                <div class="console" x-show="wsEvents.length > 0" x-cloak>
+                    <div class="console-header">
+                        <span>📡 Real-time Events</span>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;"
+                                @click="wsEvents = []">Clear</button>
+                    </div>
+                    <template x-for="event in wsEvents.slice().reverse()" :key="event.id">
+                        <div class="console-event">
+                            <span class="event-type" x-text="event.type"></span>
+                            <span class="event-time" x-text="' • ' + event.time"></span>
+                            <pre style="margin-top: 0.3rem; font-size: 0.8rem; overflow-x: auto;" x-text="JSON.stringify(event.data, null, 2)"></pre>
+                        </div>
+                    </template>
+                </div>
+            </main>
+        </div>
+
+        <!-- Create/Edit Modal -->
+        <div x-show="showModal" class="modal" @click.self="closeModal" x-cloak>
+            <div class="modal-content">
+                <h2 class="modal-header" x-text="(modalMode === 'create' ? 'Create ' : 'Edit ') + currentEntity"></h2>
+                <form @submit.prevent="submitForm" id="entity-form">
+                    <template x-for="(value, field) in formData" :key="field">
+                        <div class="form-group" x-show="field !== 'id'">
+                            <label x-text="field"></label>
+                            <input type="text" x-model="formData[field]" :name="field" required>
+                        </div>
+                    </template>
+                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">Save</button>
+                        <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_PATH = 'BASE_PATH_PLACEHOLDER';
+        function dashboard() {
+            return {
+                entities: ENTITIES_PLACEHOLDER,
+                currentEntity: null,
+                search: '',
+                counts: {},
+                items: [],
+                columns: [],
+                loading: false,
+                showModal: false,
+                modalMode: 'create',
+                formData: {},
+                wsEvents: [],
+                ws: null,
+
+                init() {
+                    this.connectWebSocket();
+                    this.loadCounts();
+                },
+
+                async loadCounts() {
+                    try {
+                        const res = await fetch(BASE_PATH + '/dashboard/counts');
+                        if (res.ok) this.counts = await res.json();
+                    } catch (e) {
+                        console.error('Failed to load counts:', e);
+                    }
+                },
+
+                selectEntity(name) {
+                    this.currentEntity = name;
+                    this.search = '';
+                    this.loadList();
+                },
+
+                async loadList() {
+                    if (!this.currentEntity) return;
+                    this.loading = true;
+                    try {
+                        const url = BASE_PATH + '/' + this.currentEntity + (this.search ? '?search=' + encodeURIComponent(this.search) : '');
+                        const res = await fetch(url);
+                        const result = await res.json();
+                        this.items = result.data || [];
+                        if (this.items.length > 0) {
+                            this.columns = Object.keys(this.items[0]).filter(k => k !== 'id');
+                        } else {
+                            this.columns = [];
+                        }
+                    } catch (e) {
+                        console.error('Failed to load list:', e);
+                        this.items = [];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                formatValue(val) {
+                    if (val === null || val === undefined) return '';
+                    if (typeof val === 'object') return JSON.stringify(val);
+                    return String(val);
+                },
+
+                async openCreateModal() {
+                    this.modalMode = 'create';
+                    try {
+                        const res = await fetch(BASE_PATH + '/dashboard/' + this.currentEntity + '/schema');
+                        const schema = await res.json();
+                        this.formData = {};
+                        schema.fields.forEach(f => { this.formData[f] = ''; });
+                    } catch (e) {
+                        this.formData = { name: '', value: '' };
+                    }
+                    this.showModal = true;
+                },
+
+                async openEditModal(id) {
+                    this.modalMode = 'edit';
+                    try {
+                        const res = await fetch(BASE_PATH + '/' + this.currentEntity + '/' + id);
+                        const result = await res.json();
+                        this.formData = { ...result.data };
+                    } catch (e) {
+                        alert('Failed to load item');
+                        return;
+                    }
+                    this.showModal = true;
+                },
+
+                closeModal() {
+                    this.showModal = false;
+                    this.formData = {};
+                },
+
+                async submitForm() {
+                    const payload = { ...this.formData };
+                    delete payload.id;
+
+                    const url = this.modalMode === 'create'
+                        ? BASE_PATH + '/' + this.currentEntity
+                        : BASE_PATH + '/' + this.currentEntity + '/' + this.formData.id;
+                    const method = this.modalMode === 'create' ? 'POST' : 'PUT';
+
+                    try {
+                        const res = await fetch(url, {
+                            method,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error('Request failed');
+                        this.closeModal();
+                        this.loadList();
+                        this.loadCounts();
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                    }
+                },
+
+                async deleteItem(id) {
+                    if (!confirm('Delete this item?')) return;
+                    try {
+                        const res = await fetch(BASE_PATH + '/' + this.currentEntity + '/' + id, { method: 'DELETE' });
+                        if (!res.ok) throw new Error('Request failed');
+                        this.loadList();
+                        this.loadCounts();
+                    } catch (e) {
+                        alert('Error: ' + e.message);
+                    }
+                },
+
+                connectWebSocket() {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    this.ws = new WebSocket(protocol + '//' + window.location.host + '/ws');
+
+                    this.ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.wsEvents.push({
+                                id: Date.now() + Math.random(),
+                                type: data.type,
+                                data: data.data,
+                                time: new Date().toLocaleTimeString()
+                            });
+                            if (this.wsEvents.length > 50) this.wsEvents.shift();
+
+                            if (data.type.startsWith('ENTITY_')) {
+                                this.loadCounts();
+                                if (this.currentEntity) this.loadList();
+                            }
+                        } catch (e) {
+                            console.error('WS parse error:', e);
+                        }
+                    };
+
+                    this.ws.onclose = () => {
+                        setTimeout(() => this.connectWebSocket(), 3000);
+                    };
+                }
+            };
+        }
+    </script>
+</body>
+</html>

@@ -51,4 +51,14 @@ public record EntityMetadata(
     public boolean hasCustomLookupField() {
         return lookupFieldName != null && !lookupFieldName.equals(idFieldName);
     }
+
+    public List<String> getFieldNames() {
+        return fields.stream()
+                .map(FieldMetadata::name)
+                .toList();
+    }
+
+    public String getPluralName() {
+        return path;
+    }
 }
