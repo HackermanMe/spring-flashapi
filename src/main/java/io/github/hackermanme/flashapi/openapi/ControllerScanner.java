@@ -85,7 +85,7 @@ public final class ControllerScanner {
                                              Class<?> controllerClass, HandlerMethod handlerMethod) {
         Method method = handlerMethod.getMethod();
         String tag = resolveTag(controllerClass);
-        String operationId = method.getName();
+        String operationId = resolveOperationId(method, tag);
         String summary = resolveSummary(method, httpMethod, path);
         List<ControllerEndpoint.EndpointParameter> params = resolveParameters(method);
         Class<?> requestBodyType = resolveRequestBody(method);
@@ -93,6 +93,42 @@ public final class ControllerScanner {
 
         return new ControllerEndpoint(path, httpMethod, tag, operationId, summary,
                 params, requestBodyType, returnType);
+    }
+
+    private String resolveOperationId(Method method, String tag) {
+        // Check for @Operation annotation from swagger-annotations (if on classpath)
+        String annotated = readSwaggerOperationId(method);
+        if (annotated != null) {
+            return annotated;
+        }
+
+        String methodName = method.getName();
+
+        // If method name already ends with the tag, no need to append (e.g., createWidget on WidgetController)
+        if (methodName.toLowerCase().endsWith(tag.toLowerCase())) {
+            return methodName;
+        }
+
+        // Append tag: create + Widget → createWidget (matches @FlashEntity pattern)
+        return methodName + tag;
+    }
+
+    private String readSwaggerOperationId(Method method) {
+        try {
+            Class<?> opAnnotation = Class.forName("io.swagger.v3.oas.annotations.Operation");
+            Object annotation = method.getAnnotation((Class) opAnnotation);
+            if (annotation != null) {
+                Method opIdMethod = opAnnotation.getMethod("operationId");
+                String value = (String) opIdMethod.invoke(annotation);
+                if (value != null && !value.isEmpty()) {
+                    return value;
+                }
+            }
+        } catch (ClassNotFoundException ignored) {
+            // swagger-annotations not on classpath — that's fine
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private String resolveTag(Class<?> controllerClass) {

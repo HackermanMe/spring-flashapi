@@ -12,6 +12,7 @@ import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.openapi.ControllerEndpoint;
 import io.github.hackermanme.flashapi.openapi.ControllerScanner;
+import io.github.hackermanme.flashapi.openapi.FlashOpenApiCustomizer;
 import io.github.hackermanme.flashapi.openapi.OpenApiController;
 import io.github.hackermanme.flashapi.openapi.OpenApiGenerator;
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
@@ -279,6 +280,20 @@ public class FlashAutoConfiguration {
 
             OpenApiGenerator generator = new OpenApiGenerator(properties, entities, controllerEndpoints);
             Map<String, Object> spec = generator.generate();
+
+            // Apply registered customizers
+            try {
+                Map<String, FlashOpenApiCustomizer> customizers = context.getBeansOfType(FlashOpenApiCustomizer.class);
+                for (FlashOpenApiCustomizer customizer : customizers.values()) {
+                    customizer.customize(spec);
+                }
+                if (!customizers.isEmpty()) {
+                    log.info("FlashAPI: applied {} OpenAPI customizer(s)", customizers.size());
+                }
+            } catch (Exception e) {
+                log.warn("FlashAPI: error applying OpenAPI customizers", e);
+            }
+
             OpenApiController controller = new OpenApiController(spec);
 
             String docsPath = properties.getOpenapi().getDocsPath();

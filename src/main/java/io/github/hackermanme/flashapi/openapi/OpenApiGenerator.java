@@ -47,7 +47,40 @@ public final class OpenApiGenerator {
             spec.put("tags", buildTags());
         }
 
+        validateUniqueOperationIds(spec);
+
         return spec;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void validateUniqueOperationIds(Map<String, Object> spec) {
+        Map<String, String> seen = new LinkedHashMap<>();
+        Map<String, Object> paths = (Map<String, Object>) spec.get("paths");
+        if (paths == null) return;
+
+        for (Map.Entry<String, Object> pathEntry : paths.entrySet()) {
+            String path = pathEntry.getKey();
+            Map<String, Object> methods = (Map<String, Object>) pathEntry.getValue();
+            for (Map.Entry<String, Object> methodEntry : methods.entrySet()) {
+                String httpMethod = methodEntry.getKey();
+                Object value = methodEntry.getValue();
+                if (!(value instanceof Map<?, ?> operation)) continue;
+                Object opId = operation.get("operationId");
+                if (opId == null) continue;
+
+                String operationId = opId.toString();
+                String location = httpMethod.toUpperCase() + " " + path;
+                String previous = seen.put(operationId, location);
+
+                if (previous != null) {
+                    throw new IllegalStateException(
+                            "FlashAPI: duplicate operationId '" + operationId + "' detected in OpenAPI spec. " +
+                            "Conflicts: [" + previous + "] and [" + location + "]. " +
+                            "Fix: rename one of the Java methods, or annotate it with " +
+                            "@Operation(operationId = \"uniqueName\") from io.swagger.v3.oas.annotations.");
+                }
+            }
+        }
     }
 
     private void mergeControllerPaths(Map<String, Object> paths, Map<String, Object> schemas) {
