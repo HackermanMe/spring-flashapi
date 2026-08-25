@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.guard.FeatureGuardHandler;
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.security.SecurityEvaluator;
@@ -28,15 +29,17 @@ public final class FlashEndpointHandler {
     private final FlashRateLimiter rateLimiter;
     private final SecurityEvaluator securityEvaluator;
     private final TenantResolver tenantResolver;
+    private final FeatureGuardHandler featureGuardHandler;
 
     public FlashEndpointHandler(FlashController controller, String operation,
                                 FlashRateLimiter rateLimiter, SecurityEvaluator securityEvaluator,
-                                TenantResolver tenantResolver) {
+                                TenantResolver tenantResolver, FeatureGuardHandler featureGuardHandler) {
         this.controller = controller;
         this.operation = operation;
         this.rateLimiter = rateLimiter;
         this.securityEvaluator = securityEvaluator;
         this.tenantResolver = tenantResolver;
+        this.featureGuardHandler = featureGuardHandler;
     }
 
     public ResponseEntity<?> handle(
@@ -93,6 +96,10 @@ public final class FlashEndpointHandler {
             if ("export".equals(operation)) {
                 controller.export(params != null ? params : Map.of(), response);
                 return null;
+            }
+
+            if ("create".equals(operation) && featureGuardHandler != null) {
+                featureGuardHandler.checkLimit(controller.getMetadata(), request);
             }
 
             return switch (operation) {

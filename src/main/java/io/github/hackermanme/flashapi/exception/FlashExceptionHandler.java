@@ -4,6 +4,7 @@ import io.github.hackermanme.flashapi.bulk.BulkLimitExceededException;
 import io.github.hackermanme.flashapi.controller.FlashEndpointHandler;
 import io.github.hackermanme.flashapi.controller.FlashBulkEndpointHandler;
 import io.github.hackermanme.flashapi.export.ExportUnavailableException;
+import io.github.hackermanme.flashapi.guard.RecordLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -33,6 +34,16 @@ public class FlashExceptionHandler {
         body.put("status", 400);
         body.put("error", ex.getMessage());
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(RecordLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRecordLimitExceeded(RecordLimitExceededException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", 403);
+        body.put("error", ex.getMessage());
+        body.put("entity", ex.getEntityName());
+        body.put("limit", ex.getLimit());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     @ExceptionHandler(BulkLimitExceededException.class)

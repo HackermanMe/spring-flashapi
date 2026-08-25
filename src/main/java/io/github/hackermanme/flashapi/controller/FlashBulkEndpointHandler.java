@@ -1,5 +1,6 @@
 package io.github.hackermanme.flashapi.controller;
 
+import io.github.hackermanme.flashapi.guard.FeatureGuardHandler;
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.security.SecurityEvaluator;
@@ -20,15 +21,17 @@ public final class FlashBulkEndpointHandler {
     private final FlashRateLimiter rateLimiter;
     private final SecurityEvaluator securityEvaluator;
     private final TenantResolver tenantResolver;
+    private final FeatureGuardHandler featureGuardHandler;
 
     public FlashBulkEndpointHandler(FlashController controller, String operation,
                                     FlashRateLimiter rateLimiter, SecurityEvaluator securityEvaluator,
-                                    TenantResolver tenantResolver) {
+                                    TenantResolver tenantResolver, FeatureGuardHandler featureGuardHandler) {
         this.controller = controller;
         this.operation = operation;
         this.rateLimiter = rateLimiter;
         this.securityEvaluator = securityEvaluator;
         this.tenantResolver = tenantResolver;
+        this.featureGuardHandler = featureGuardHandler;
     }
 
     public ResponseEntity<?> handle(
@@ -68,6 +71,10 @@ public final class FlashBulkEndpointHandler {
                         .header("X-RateLimit-Remaining", "0")
                         .header("X-RateLimit-Reset", String.valueOf(window))
                         .body(Map.of("error", "Rate limit exceeded", "status", 429, "retryAfter", window));
+            }
+
+            if ("bulkCreate".equals(operation) && featureGuardHandler != null && body instanceof java.util.List<?> items) {
+                featureGuardHandler.checkLimit(controller.getMetadata(), request, items.size());
             }
 
             return switch (operation) {

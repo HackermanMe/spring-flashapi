@@ -65,6 +65,7 @@ DELETE /api/products/bulk                — batch delete
 - **Lookup field** — use UUID or any unique field in URLs instead of exposing auto-increment IDs
 - **Custom services** — implement `FlashCrudOperations<T, ID>` to add business logic
 - **Authorization** — `@FlashSecured` for role-based endpoint access control
+- **Feature guard** — `@FeatureGuard(max = N)` for record-count limits with dynamic `PlanLimitResolver`
 - **Multi-tenancy** — `@FlashMultiTenant` for automatic data isolation per tenant
 - **Webhooks** — `@FlashWebhook` for real-time event notifications to external systems
 - **Spring Security aware** — audit resolves current user automatically
@@ -289,6 +290,7 @@ flashapi.websocket.enabled=true
 | [Relations & Expand](docs/relations.md) | Include related entities in responses |
 | [Cache](docs/cache.md) | Intelligent response caching |
 | [Rate Limiting](docs/rate-limiting.md) | Per-IP rate limiting |
+| [Feature Guard](docs/feature-guard.md) | Record-count limits & SaaS plan enforcement |
 | [Search](docs/search.md) | Full-text search across fields |
 | [OpenAPI](docs/openapi.md) | Auto-generated Swagger UI & spec |
 | [Security](docs/security.md) | @FlashSecured role-based authorization |

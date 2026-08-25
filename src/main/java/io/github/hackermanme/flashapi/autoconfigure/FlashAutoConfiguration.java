@@ -10,6 +10,8 @@ import io.github.hackermanme.flashapi.dashboard.DashboardController;
 import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
+import io.github.hackermanme.flashapi.guard.FeatureGuardHandler;
+import io.github.hackermanme.flashapi.guard.PlanLimitResolver;
 import io.github.hackermanme.flashapi.openapi.ControllerEndpoint;
 import io.github.hackermanme.flashapi.openapi.ControllerScanner;
 import io.github.hackermanme.flashapi.openapi.FlashOpenApiCustomizer;
@@ -149,6 +151,17 @@ public class FlashAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public FeatureGuardHandler flashFeatureGuardHandler() {
+        PlanLimitResolver resolver = null;
+        try {
+            resolver = context.getBean(PlanLimitResolver.class);
+        } catch (Exception ignored) {
+        }
+        return new FeatureGuardHandler(entityManager, resolver);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public FlashRateLimiter flashRateLimiter() {
         return new FlashRateLimiter();
     }
@@ -199,10 +212,11 @@ public class FlashAutoConfiguration {
         FlashRateLimiter rateLimiter = context.getBean(FlashRateLimiter.class);
         SecurityEvaluator securityEvaluator = context.getBean(SecurityEvaluator.class);
         TenantResolver tenantResolver = context.getBean(TenantResolver.class);
+        FeatureGuardHandler featureGuardHandler = context.getBean(FeatureGuardHandler.class);
         FlashRouteRegistrar registrar = new FlashRouteRegistrar(
                 handlerMapping, crudService, serviceResolver, exportHandler, bulkHandler,
                 relationExpander, cacheManager, rateLimiter, securityEvaluator, tenantResolver,
-                properties.getBasePath());
+                featureGuardHandler, properties.getBasePath());
         registrar.registerAll(entities);
 
         log.info("FlashAPI: {} entities registered, endpoints available at {}/",

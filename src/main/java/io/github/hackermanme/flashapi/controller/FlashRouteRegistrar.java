@@ -3,6 +3,7 @@ package io.github.hackermanme.flashapi.controller;
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.cache.FlashCacheManager;
 import io.github.hackermanme.flashapi.export.ExportHandler;
+import io.github.hackermanme.flashapi.guard.FeatureGuardHandler;
 import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
@@ -41,6 +42,7 @@ public final class FlashRouteRegistrar {
     private final FlashRateLimiter rateLimiter;
     private final SecurityEvaluator securityEvaluator;
     private final TenantResolver tenantResolver;
+    private final FeatureGuardHandler featureGuardHandler;
     private final String basePath;
     private final Set<String> existingMappings;
 
@@ -54,6 +56,7 @@ public final class FlashRouteRegistrar {
                                FlashRateLimiter rateLimiter,
                                SecurityEvaluator securityEvaluator,
                                TenantResolver tenantResolver,
+                               FeatureGuardHandler featureGuardHandler,
                                String basePath) {
         this.handlerMapping = handlerMapping;
         this.crudService = crudService;
@@ -65,6 +68,7 @@ public final class FlashRouteRegistrar {
         this.rateLimiter = rateLimiter;
         this.securityEvaluator = securityEvaluator;
         this.tenantResolver = tenantResolver;
+        this.featureGuardHandler = featureGuardHandler;
         this.basePath = normalizePath(basePath);
         this.existingMappings = snapshotExistingMappings();
     }
@@ -137,7 +141,7 @@ public final class FlashRouteRegistrar {
                 .methods(method)
                 .build();
 
-        var handler = new FlashEndpointHandler(controller, handlerMethodName, rateLimiter, securityEvaluator, tenantResolver);
+        var handler = new FlashEndpointHandler(controller, handlerMethodName, rateLimiter, securityEvaluator, tenantResolver, featureGuardHandler);
         var handleMethod = FlashEndpointHandler.class.getMethod("handle",
                 jakarta.servlet.http.HttpServletRequest.class,
                 jakarta.servlet.http.HttpServletResponse.class,
@@ -161,7 +165,7 @@ public final class FlashRouteRegistrar {
                 .methods(method)
                 .build();
 
-        var handler = new FlashBulkEndpointHandler(controller, handlerMethodName, rateLimiter, securityEvaluator, tenantResolver);
+        var handler = new FlashBulkEndpointHandler(controller, handlerMethodName, rateLimiter, securityEvaluator, tenantResolver, featureGuardHandler);
         var handleMethod = FlashBulkEndpointHandler.class.getMethod("handle",
                 jakarta.servlet.http.HttpServletRequest.class, Object.class);
 
