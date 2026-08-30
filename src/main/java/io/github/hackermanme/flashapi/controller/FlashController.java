@@ -30,7 +30,7 @@ import java.util.*;
 public final class FlashController {
 
     private static final Set<String> RESERVED_PARAMS = Set.of(
-            "page", "size", "sort", "expand", "format");
+            "page", "size", "sort", "expand", "fields", "format");
 
     private final EntityMetadata metadata;
     private final GenericCrudService crudService;
@@ -64,10 +64,11 @@ public final class FlashController {
         int size = Math.clamp(extractInt(mutable.remove("size"), 20), 1, 100);
         String sortParam = mutable.remove("sort");
         Set<String> expandFields = parseExpand(mutable.remove("expand"));
+        Set<String> selectedFields = parseFields(mutable.remove("fields"));
         RESERVED_PARAMS.forEach(mutable::remove);
 
         String cacheKey = "list:" + page + ":" + size + ":" + sortParam + ":" + mutable;
-        if (expandFields.isEmpty()) {
+        if (expandFields.isEmpty() && selectedFields.isEmpty()) {
             Object cached = cacheManager.getFromCache(metadata, cacheKey);
             if (cached != null) {
                 return ResponseEntity.ok((Map<String, Object>) cached);
@@ -80,7 +81,7 @@ public final class FlashController {
                 : crudService.list(metadata, pageable, mutable);
 
         List<Map<String, Object>> data = result.getContent().stream()
-                .map(e -> serialize(e, expandFields))
+                .map(e -> serialize(e, expandFields, selectedFields))
                 .toList();
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -104,8 +105,9 @@ public final class FlashController {
             return methodNotAllowed();
         }
         Set<String> expandFields = parseExpand(params != null ? params.get("expand") : null);
+        Set<String> selectedFields = parseFields(params != null ? params.get("fields") : null);
 
-        if (expandFields.isEmpty()) {
+        if (expandFields.isEmpty() && selectedFields.isEmpty()) {
             String cacheKey = "id:" + id;
             Object cached = cacheManager.getFromCache(metadata, cacheKey);
             if (cached != null) {
@@ -118,8 +120,8 @@ public final class FlashController {
                 : crudService.findById(metadata, id);
 
         return found.map(e -> {
-            Map<String, Object> response = Map.of("data", serialize(e, expandFields));
-            if (expandFields.isEmpty()) {
+            Map<String, Object> response = Map.of("data", serialize(e, expandFields, selectedFields));
+            if (expandFields.isEmpty() && selectedFields.isEmpty()) {
                 cacheManager.putInCache(metadata, "id:" + id, response);
             }
             return ResponseEntity.ok(response);
@@ -136,7 +138,7 @@ public final class FlashController {
                 : crudService.create(metadata, body);
         cacheManager.evict(metadata);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of("data", serialize(created, Set.of())));
+                .body(Map.of("data", serialize(created, Set.of(), Set.of())));
     }
 
     public ResponseEntity<Map<String, Object>> update(Object id, Map<String, Object> body) {
@@ -148,7 +150,7 @@ public final class FlashController {
                 : crudService.update(metadata, id, body);
         cacheManager.evict(metadata);
         return updated
-                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, Set.of()))))
+                .map(e -> ResponseEntity.ok(Map.<String, Object>of("data", serialize(e, Set.of(), Set.of()))))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", metadata.entityName() + " not found", "status", 404)));
     }
@@ -324,12 +326,25 @@ public final class FlashController {
         return metadata;
     }
 
-    private Map<String, Object> serialize(Object entity, Set<String> expandFields) {
+    private Map<String, Object> serialize(Object entity, Set<String> expandFields, Set<String> selectedFields) {
         if (expandFields != null && !expandFields.isEmpty() && metadata.hasRelations()) {
-            return relationExpander.serialize(metadata, entity, expandFields);
+            Map<String, Object> expanded = relationExpander.serialize(metadata, entity, expandFields);
+            if (selectedFields != null && !selectedFields.isEmpty()) {
+                return filterFields(expanded, selectedFields);
+            }
+            return expanded;
         }
+
+        List<FieldMetadata> fieldsToSerialize = metadata.visibleFields();
+        if (selectedFields != null && !selectedFields.isEmpty()) {
+            // Filter to only selected fields (already validated for security)
+            fieldsToSerialize = fieldsToSerialize.stream()
+                    .filter(f -> selectedFields.contains(f.name()))
+                    .toList();
+        }
+
         Map<String, Object> map = new LinkedHashMap<>();
-        for (FieldMetadata field : metadata.visibleFields()) {
+        for (FieldMetadata field : fieldsToSerialize) {
             try {
                 map.put(field.name(), field.javaField().get(entity));
             } catch (IllegalAccessException e) {
@@ -337,6 +352,31 @@ public final class FlashController {
             }
         }
         return map;
+    }
+
+    private Map<String, Object> filterFields(Map<String, Object> map, Set<String> selectedFields) {
+        Map<String, Object> filtered = new LinkedHashMap<>();
+        for (String field : selectedFields) {
+            if (map.containsKey(field)) {
+                filtered.put(field, map.get(field));
+            }
+        }
+        return filtered;
+    }
+
+    private Set<String> parseFields(String fieldsParam) {
+        if (fieldsParam == null || fieldsParam.isBlank()) {
+            return Set.of();
+        }
+        Set<String> visibleFieldNames = metadata.visibleFields().stream()
+                .map(FieldMetadata::name)
+                .collect(java.util.stream.Collectors.toSet());
+
+        return Arrays.stream(fieldsParam.split(","))
+                .map(String::trim)
+                .filter(f -> !f.isEmpty())
+                .filter(visibleFieldNames::contains) // SECURITY: only allow visible fields
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Set<String> parseExpand(String expandParam) {
