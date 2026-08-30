@@ -129,6 +129,19 @@ public final class EntityScanner {
             lookupFieldType = lookupMeta.type();
         }
 
+        List<ManyToOneDescriptor> manyToOneDescriptors = new ArrayList<>();
+        for (RelationMetadata rel : immutableRelations) {
+            if (rel.type() == RelationMetadata.RelationType.MANY_TO_ONE) {
+                String fkFieldName = rel.name() + "Id";
+                Class<?> targetEntity = rel.targetEntity();
+                Class<?> targetIdType = extractIdType(targetEntity);
+                Field relationField = rel.javaField();
+                manyToOneDescriptors.add(new ManyToOneDescriptor(fkFieldName, relationField, targetEntity, targetIdType));
+            }
+        }
+        Map<String, ManyToOneDescriptor> manyToOneByFkName = manyToOneDescriptors.stream()
+                .collect(Collectors.toUnmodifiableMap(ManyToOneDescriptor::fkFieldName, Function.identity()));
+
         return new EntityMetadata(
                 clazz, clazz.getSimpleName(), path,
                 pkField.name(), pkField.type(),
@@ -138,8 +151,18 @@ public final class EntityScanner {
                 tenantField, lookupFieldName, lookupFieldType,
                 ops, immutableFields, fieldsByName,
                 creatableFields, updatableFields, visibleFields, exportableFields, pkField,
-                immutableRelations, relationsByName
+                immutableRelations, relationsByName,
+                manyToOneDescriptors, manyToOneByFkName
         );
+    }
+
+    private static Class<?> extractIdType(Class<?> entityClass) {
+        for (Field field : collectInstanceFields(entityClass)) {
+            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                return field.getType();
+            }
+        }
+        return Long.class; // fallback
     }
 
     private static RelationMetadata buildRelationMetadata(Field field) {

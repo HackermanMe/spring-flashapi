@@ -34,7 +34,9 @@ public record EntityMetadata(
         List<FieldMetadata> exportableFields,
         FieldMetadata primaryKeyField,
         List<RelationMetadata> relations,
-        Map<String, RelationMetadata> relationsByName
+        Map<String, RelationMetadata> relationsByName,
+        List<ManyToOneDescriptor> manyToOneDescriptors,
+        Map<String, ManyToOneDescriptor> manyToOneByFkName
 ) {
     public boolean isOperationAllowed(CrudOperation op) {
         return allowedOperations.contains(op);
@@ -50,15 +52,5 @@ public record EntityMetadata(
 
     public boolean hasCustomLookupField() {
         return lookupFieldName != null && !lookupFieldName.equals(idFieldName);
-    }
-
-    public List<String> getFieldNames() {
-        return fields.stream()
-                .map(FieldMetadata::name)
-                .toList();
-    }
-
-    public String getPluralName() {
-        return path;
     }
 }

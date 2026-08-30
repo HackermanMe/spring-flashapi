@@ -147,7 +147,7 @@ public class GenericCrudService {
         Map<String, Object> mutableData = new HashMap<>(data);
         tenantHandler.injectTenant(meta, mutableData);
         Object instance = instantiate(meta);
-        applyFields(instance, meta.creatableFields(), mutableData);
+        applyFields(instance, meta.creatableFields(), mutableData, meta);
         fillAuditFields(instance, true);
         entityManager.persist(instance);
         entityManager.flush();
@@ -169,7 +169,7 @@ public class GenericCrudService {
         // Snapshot before for audit diff
         Map<String, Object> beforeSnapshot = meta.auditTrackFields() ? snapshot(meta, instance) : null;
 
-        applyFields(instance, meta.updatableFields(), data);
+        applyFields(instance, meta.updatableFields(), data, meta);
         fillAuditFields(instance, false);
         Object merged = entityManager.merge(instance);
         entityManager.flush();
@@ -359,7 +359,7 @@ public class GenericCrudService {
         }
     }
 
-    private void applyFields(Object instance, List<FieldMetadata> fields, Map<String, Object> data) {
+    private void applyFields(Object instance, List<FieldMetadata> fields, Map<String, Object> data, EntityMetadata metadata) {
         for (FieldMetadata field : fields) {
             if (!data.containsKey(field.name())) continue;
             Object value = data.get(field.name());
@@ -371,6 +371,30 @@ public class GenericCrudService {
                 field.javaField().set(instance, finalValue);
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException("Cannot set " + field.name() + " on " + instance.getClass().getSimpleName(), e);
+            }
+        }
+
+        // Resolve @ManyToOne relations via FK IDs (e.g., "categoryId": 1 -> Category entity)
+        for (io.github.hackermanme.flashapi.registry.ManyToOneDescriptor descriptor : metadata.manyToOneDescriptors()) {
+            String fkFieldName = descriptor.fkFieldName();
+            if (!data.containsKey(fkFieldName)) continue;
+            Object idValue = data.get(fkFieldName);
+            if (idValue == null) {
+                // Set null on the relation field
+                try {
+                    descriptor.relationField().set(instance, null);
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException("Cannot set null on " + descriptor.relationField().getName(), e);
+                }
+            } else {
+                // Resolve FK ID to managed entity reference
+                Object convertedId = coerce(idValue, descriptor.targetIdType());
+                Object reference = entityManager.getReference(descriptor.targetEntity(), convertedId);
+                try {
+                    descriptor.relationField().set(instance, reference);
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException("Cannot set relation " + descriptor.relationField().getName(), e);
+                }
             }
         }
     }
