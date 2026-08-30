@@ -94,31 +94,27 @@ curl "http://localhost:8080/api/products?expand=category&page=0&size=10"  # pagi
 
 ## Assigning Relations (Write Operations)
 
-Relations are **read-only** in FlashAPI's generated endpoints. Sending a nested object or an ID in a relation field during `POST` or `PUT` is ignored — FlashAPI only writes scalar fields.
+FlashAPI automatically resolves `@ManyToOne` and `@OneToOne` relations from foreign key IDs in the request body.
 
-### Recommended Pattern: FK field + relation field
+### Automatic FK Resolution
 
-To make a relation assignable via the API, add both a scalar FK field (writable) and a relation annotation (read-only for expand):
+When you send a field ending with `Id` that matches a `@ManyToOne` field name, FlashAPI automatically resolves the relation:
 
 ```java
 @Entity
 @FlashEntity
 public class Product {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue
     private Long id;
     private String name;
     private BigDecimal price;
 
-    @Column(name = "category_id")
-    private Long categoryId;  // writable via POST/PUT
-
     @ManyToOne
-    @JoinColumn(name = "category_id", insertable = false, updatable = false)
-    private Category category;  // read-only, used for ?expand=category
+    private Category category;  // Automatically resolved from categoryId
 }
 ```
 
-Now you can assign the category on create/update via the scalar field:
+Create a product by providing the category ID:
 
 ```bash
 curl -X POST http://localhost:8080/api/products \
@@ -126,17 +122,64 @@ curl -X POST http://localhost:8080/api/products \
   -d '{"name": "Laptop", "price": 999.99, "categoryId": 1}'
 ```
 
-And read the full relation via expand:
+FlashAPI detects `categoryId` in the body, resolves it to a `Category` entity reference, and sets the `category` field before persisting.
 
-```bash
-curl http://localhost:8080/api/products/1?expand=category
+**How it works:**
+- Uses `EntityManager.getReference(Category.class, 1)` — no extra SELECT query
+- Creates a lazy proxy that satisfies the FK constraint
+- Works with `Long`, `Integer`, `UUID`, and `String` ID types
+
+Set a relation to null:
+
+```json
+{"name": "Orphaned Product", "categoryId": null}
 ```
 
-### Why this design?
+### Pattern 1: ManyToOne Only (Recommended)
 
-- Relations are complex objects — FlashAPI would need to resolve references, handle cascading, and validate existence. This is logic better handled by a custom service (Level 2).
-- The FK field pattern is explicit, simple, and works with any JPA provider.
-- If you need full control over relation management, override with a custom service.
+The simplest pattern — just the `@ManyToOne` annotation:
+
+```java
+@ManyToOne
+private Category category;
+```
+
+Send `categoryId` in the body, FlashAPI resolves it automatically. No explicit FK field needed.
+
+### Pattern 2: Explicit FK Field (Advanced)
+
+If you need direct access to the FK column in your code, add both fields:
+
+```java
+@Column(name = "category_id")
+private Long categoryId;  // Explicit FK field
+
+@ManyToOne
+@JoinColumn(name = "category_id", insertable = false, updatable = false)
+private Category category;  // Resolved from categoryId
+```
+
+Both `categoryId` (scalar) and the derived `categoryId` from `@ManyToOne` work in the request body.
+
+### Why Automatic Resolution?
+
+- **No boilerplate**: No need for explicit FK fields unless you need them in your code
+- **Performance**: `getReference()` creates a proxy without a SELECT query
+- **Type-safe**: Validates ID type compatibility at startup
+- **Standard JPA**: Works with any JPA provider
+
+### Nested Objects Not Supported
+
+You cannot create related entities inline:
+
+```json
+{
+  "name": "Phone",
+  "category": { "name": "Electronics" }  // ❌ Not supported
+}
+```
+
+Create the `Category` first, then reference its ID.
 
 ---
 

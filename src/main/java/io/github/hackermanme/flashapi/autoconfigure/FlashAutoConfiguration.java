@@ -12,6 +12,7 @@ import io.github.hackermanme.flashapi.exception.FlashExceptionHandler;
 import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.guard.FeatureGuardHandler;
 import io.github.hackermanme.flashapi.guard.PlanLimitResolver;
+import io.github.hackermanme.flashapi.hooks.HookRegistry;
 import io.github.hackermanme.flashapi.openapi.ControllerEndpoint;
 import io.github.hackermanme.flashapi.openapi.ControllerScanner;
 import io.github.hackermanme.flashapi.openapi.FlashOpenApiCustomizer;
@@ -102,8 +103,9 @@ public class FlashAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public GenericCrudService flashCrudService(AuditService auditService, SoftDeleteHandler softDeleteHandler,
-                                              TenantHandler tenantHandler, WebhookDispatcher webhookDispatcher) {
-        return new GenericCrudService(entityManager, auditService, softDeleteHandler, tenantHandler, webhookDispatcher);
+                                              TenantHandler tenantHandler, WebhookDispatcher webhookDispatcher,
+                                              HookRegistry hookRegistry) {
+        return new GenericCrudService(entityManager, auditService, softDeleteHandler, tenantHandler, webhookDispatcher, hookRegistry);
     }
 
     @Bean

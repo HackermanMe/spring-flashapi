@@ -2,6 +2,7 @@ package io.github.hackermanme.flashapi.service;
 
 import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
+import io.github.hackermanme.flashapi.hooks.*;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
@@ -10,12 +11,15 @@ import io.github.hackermanme.flashapi.webhook.WebhookDispatcher;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -32,17 +36,19 @@ public class GenericCrudService {
     private final SoftDeleteHandler softDeleteHandler;
     private final TenantHandler tenantHandler;
     private final WebhookDispatcher webhookDispatcher;
+    private final HookRegistry hookRegistry;
     private volatile MetricsCollector metricsCollector;
     private volatile FlashEventBroadcaster eventBroadcaster;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
                               SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler,
-                              WebhookDispatcher webhookDispatcher) {
+                              WebhookDispatcher webhookDispatcher, HookRegistry hookRegistry) {
         this.entityManager = entityManager;
         this.auditService = auditService;
         this.softDeleteHandler = softDeleteHandler;
         this.tenantHandler = tenantHandler;
         this.webhookDispatcher = webhookDispatcher;
+        this.hookRegistry = hookRegistry;
     }
 
     public void setMetricsCollector(MetricsCollector metricsCollector) {
@@ -74,6 +80,11 @@ public class GenericCrudService {
 
     private void recordMetric(String entityName, String operation, String entityId) {
         if (metricsCollector != null) metricsCollector.recordOperation(entityName, operation, entityId);
+    }
+
+    private HttpServletRequest getCurrentRequest() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return attrs != null ? attrs.getRequest() : null;
     }
 
     @Transactional(readOnly = true)
@@ -149,8 +160,15 @@ public class GenericCrudService {
         Object instance = instantiate(meta);
         applyFields(instance, meta.creatableFields(), mutableData, meta);
         fillAuditFields(instance, true);
+
+        HttpServletRequest request = getCurrentRequest();
+        hookRegistry.invokeHooks(FlashBeforeCreate.class, instance, request);
+
         entityManager.persist(instance);
         entityManager.flush();
+
+        hookRegistry.invokeHooks(FlashAfterCreate.class, instance, request);
+
         auditService.logCreate(meta, instance);
         webhookDispatcher.dispatch(meta, "CREATE", instance);
         broadcastEvent(meta, "CREATE", instance);
@@ -171,8 +189,14 @@ public class GenericCrudService {
 
         applyFields(instance, meta.updatableFields(), data, meta);
         fillAuditFields(instance, false);
+
+        HttpServletRequest request = getCurrentRequest();
+        hookRegistry.invokeHooks(FlashBeforeUpdate.class, instance, request);
+
         Object merged = entityManager.merge(instance);
         entityManager.flush();
+
+        hookRegistry.invokeHooks(FlashAfterUpdate.class, merged, request);
 
         if (meta.auditTrackFields()) {
             auditService.logUpdate(meta, wrapSnapshot(meta, beforeSnapshot), merged);
@@ -194,10 +218,14 @@ public class GenericCrudService {
         if (instance == null) return false;
         if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return false;
 
+        HttpServletRequest request = getCurrentRequest();
+        hookRegistry.invokeHooks(FlashBeforeDelete.class, instance, request);
+
         if (meta.softDelete()) {
             Object realId = extractPrimaryKey(meta, instance);
             boolean deleted = softDeleteHandler.softDelete(meta, realId);
             if (deleted) {
+                hookRegistry.invokeHooks(FlashAfterDelete.class, instance, request);
                 webhookDispatcher.dispatch(meta, "DELETE", instance);
                 broadcastEvent(meta, "DELETE", instance);
                 recordMetric(meta.entityName(), "DELETE");
@@ -206,11 +234,14 @@ public class GenericCrudService {
         }
 
         auditService.logDelete(meta, instance);
+        entityManager.remove(instance);
+        entityManager.flush();
+
+        hookRegistry.invokeHooks(FlashAfterDelete.class, instance, request);
+
         webhookDispatcher.dispatch(meta, "DELETE", instance);
         broadcastEvent(meta, "DELETE", instance);
         recordMetric(meta.entityName(), "DELETE");
-        entityManager.remove(instance);
-        entityManager.flush();
         return true;
     }
 
@@ -281,11 +312,54 @@ public class GenericCrudService {
         }
 
         Map<String, FieldMetadata> fieldMap = meta.fieldsByName();
+        Map<String, jakarta.persistence.criteria.Join<Object, Object>> joins = new java.util.HashMap<>();
+
         for (Map.Entry<String, String> entry : filters.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
             ParsedFilter parsed = parseFilterKey(key);
 
+            // Check for relation filter (e.g., category.id)
+            if (parsed.fieldName.contains(".")) {
+                String[] parts = parsed.fieldName.split("\\.", 2);
+                if (parts.length == 2) {
+                    String relationName = parts[0];
+                    String targetField = parts[1];
+
+                    // Reject deep nesting (max 1 level)
+                    if (targetField.contains(".")) {
+                        throw new IllegalArgumentException("Nested relation filters not supported: " + parsed.fieldName);
+                    }
+
+                    // Validate relation exists
+                    io.github.hackermanme.flashapi.registry.RelationMetadata relation =
+                            meta.relationsByName().get(relationName);
+                    if (relation == null) continue; // silently ignore unknown relations
+
+                    // Only allow @ManyToOne and @OneToOne
+                    if (relation.type() == io.github.hackermanme.flashapi.registry.RelationMetadata.RelationType.ONE_TO_MANY ||
+                        relation.type() == io.github.hackermanme.flashapi.registry.RelationMetadata.RelationType.MANY_TO_MANY) {
+                        throw new IllegalArgumentException("Cannot filter by collection relation: " + relationName);
+                    }
+
+                    // Reuse or create join
+                    jakarta.persistence.criteria.Join<Object, Object> join = joins.get(relationName);
+                    if (join == null) {
+                        join = root.join(relationName);
+                        joins.put(relationName, join);
+                    }
+
+                    // Build predicate on joined entity
+                    Class<?> targetType = inferFieldType(relation.targetEntity(), targetField);
+                    if (targetType != null) {
+                        Predicate p = buildPredicate(cb, join.get(targetField), parsed.operator, value, targetType);
+                        if (p != null) predicates.add(p);
+                    }
+                    continue;
+                }
+            }
+
+            // Standard field filter
             FieldMetadata field = fieldMap.get(parsed.fieldName);
             if (field == null) continue;
 
@@ -456,6 +530,24 @@ public class GenericCrudService {
     }
 
     private record ParsedFilter(String fieldName, String operator) {}
+
+    /**
+     * Infers the field type of a target entity for relation filters.
+     * Uses reflection to find the field on the target entity class.
+     */
+    private Class<?> inferFieldType(Class<?> targetEntity, String fieldName) {
+        try {
+            java.lang.reflect.Field field = targetEntity.getDeclaredField(fieldName);
+            return field.getType();
+        } catch (NoSuchFieldException e) {
+            // Try parent class
+            Class<?> parent = targetEntity.getSuperclass();
+            if (parent != null && parent != Object.class) {
+                return inferFieldType(parent, fieldName);
+            }
+            return null;
+        }
+    }
 
     private String hashPassword(String raw) {
         try {

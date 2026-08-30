@@ -50,11 +50,14 @@ DELETE /api/products/bulk                — batch delete
 - **Zero boilerplate** — annotate your entity, get a full CRUD API
 - **Progressive disclosure** — FlashAPI recedes as you define your own services or controllers
 - **Dynamic filtering** — `?price.gte=100&name.contains=phone` with 11 operators
+- **Relation filters** — filter by joined entities (e.g., `?category.id=1`)
 - **Full-text search** — `?search=laptop` across all String fields
 - **Pagination & sorting** — `?page=0&size=20&sort=name,asc`
 - **Export** — CSV, Excel, and PDF with one query param (`?format=csv`)
 - **Bulk operations** — batch create, update, delete with per-item error reporting
-- **Relations & expand** — `?expand=category,tags` to include related entities
+- **Relations & expand** — automatic FK resolution from `categoryId` in body, `?expand=category,tags` to include related entities
+- **Field selection** — `?fields=id,name` for sparse fieldsets (reduce payload size)
+- **Typed errors** — production-ready error responses with proper HTTP status codes
 - **Intelligent caching** — transparent response caching with auto-invalidation on writes
 - **Rate limiting** — per-IP token bucket, configurable per entity
 - **WebSocket real-time** — live CRUD events via raw WebSocket at `/api/ws`
@@ -68,6 +71,7 @@ DELETE /api/products/bulk                — batch delete
 - **Feature guard** — `@FeatureGuard(max = N)` for record-count limits with dynamic `PlanLimitResolver`
 - **Multi-tenancy** — `@FlashMultiTenant` for automatic data isolation per tenant
 - **Webhooks** — `@FlashWebhook` for real-time event notifications to external systems
+- **Lifecycle hooks** — `@FlashBeforeCreate`, `@FlashAfterUpdate`, etc. for injecting business logic at CRUD events
 - **Spring Security aware** — audit resolves current user automatically
 - **Type-safe IDs** — supports Long, Integer, UUID, String
 
@@ -287,7 +291,9 @@ flashapi.websocket.enabled=true
 | [Custom Services](docs/custom-service.md) | Taking control of business logic |
 | [Export](docs/export.md) | CSV, Excel, and PDF export |
 | [Bulk Operations](docs/bulk.md) | Batch create, update, delete |
-| [Relations & Expand](docs/relations.md) | Include related entities in responses |
+| [Relations & Expand](docs/relations.md) | Include related entities in responses, automatic FK resolution |
+| [Field Selection](docs/field-selection.md) | Sparse fieldsets with `?fields=` query parameter |
+| [Error Handling](docs/error-handling.md) | HTTP status codes, error formats, and validation |
 | [Cache](docs/cache.md) | Intelligent response caching |
 | [Rate Limiting](docs/rate-limiting.md) | Per-IP rate limiting |
 | [Feature Guard](docs/feature-guard.md) | Record-count limits & SaaS plan enforcement |
