@@ -75,7 +75,7 @@ public class FlashAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SoftDeleteHandler flashSoftDeleteHandler() {
-        return new SoftDeleteHandler(entityManager, properties.getSoftDelete().getColumnName());
+        return new SoftDeleteHandler(entityManager, properties.getSoftDelete().getAttributeName());
     }
 
     @Bean

@@ -102,10 +102,10 @@ public class FlashProperties {
     }
 
     public static class SoftDeleteProperties {
-        private String columnName = "deletedAt";
+        private String attributeName = "deletedAt";
 
-        public String getColumnName() { return columnName; }
-        public void setColumnName(String columnName) { this.columnName = columnName; }
+        public String getAttributeName() { return attributeName; }
+        public void setAttributeName(String attributeName) { this.attributeName = attributeName; }
     }
 
     public static class TenantProperties {
