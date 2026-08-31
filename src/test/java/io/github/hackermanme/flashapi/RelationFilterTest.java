@@ -20,7 +20,7 @@ class RelationFilterTest {
     @Autowired
     private MockMvc mvc;
 
-    private Long categoryId;
+    private static Long categoryId;
 
     @Test
     @Order(1)
@@ -56,7 +56,7 @@ class RelationFilterTest {
     @Test
     @Order(3)
     void filterByCategoryIdWithOperator() throws Exception {
-        mvc.perform(get("/api/products?category.id[gt]=0"))
+        mvc.perform(get("/api/products?category.id.gt=0"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].name").value("Laptop"));
     }

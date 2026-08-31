@@ -27,12 +27,14 @@ GET /api/faculties?university.id=10
 
 ## Operators
 
-Combine with standard operators:
+Combine with standard FlashAPI operators (dot notation):
 
 ```bash
-?category.id[gt]=5
-?university.name[like]=Harvard
+?category.id.gt=5
+?university.name.contains=Harvard
 ```
+
+See [Search](search.md) for the full list of operators (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `startswith`, `endswith`, `isnull`, `in`).
 
 ## Performance
 
@@ -40,7 +42,7 @@ FlashAPI generates a single SQL JOIN per relation, not N+1 queries. Multiple fil
 
 ```bash
 # Single JOIN for both filters
-GET /api/products?category.id=5&category.name[like]=Electronics
+GET /api/products?category.id=5&category.name.contains=Electronics
 ```
 
 ## Error Handling

@@ -294,6 +294,8 @@ flashapi.websocket.enabled=true
 | [Relations & Expand](docs/relations.md) | Include related entities in responses, automatic FK resolution |
 | [Field Selection](docs/field-selection.md) | Sparse fieldsets with `?fields=` query parameter |
 | [Error Handling](docs/error-handling.md) | HTTP status codes, error formats, and validation |
+| [Relation Filters](docs/relation-filters.md) | Filter by joined entities (`?category.id=5`) |
+| [Lifecycle Hooks](docs/lifecycle-hooks.md) | Inject business logic at CRUD events |
 | [Cache](docs/cache.md) | Intelligent response caching |
 | [Rate Limiting](docs/rate-limiting.md) | Per-IP rate limiting |
 | [Feature Guard](docs/feature-guard.md) | Record-count limits & SaaS plan enforcement |

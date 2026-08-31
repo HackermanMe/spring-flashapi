@@ -36,7 +36,7 @@ class HookIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("Test Product"));
+                .andExpect(jsonPath("$.data.name").value("Test Product"));
 
         assertThat(hookListener.events)
                 .containsExactly("beforeCreate:Test Product", "afterCreate:Test Product");
@@ -73,7 +73,7 @@ class HookIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateJson))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated"));
+                .andExpect(jsonPath("$.data.name").value("Updated"));
 
         assertThat(hookListener.events)
                 .containsExactly("beforeUpdate:Updated", "afterUpdate:Updated");
