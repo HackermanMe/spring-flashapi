@@ -1,0 +1,134 @@
+# Migration Guide
+
+This guide helps you upgrade between major versions of Spring FlashAPI.
+
+---
+
+## v1.x → v2.0.0
+
+### Breaking Changes
+
+#### 1. Soft-delete configuration renamed
+
+The property `flashapi.soft-delete.column-name` has been renamed to `flashapi.soft-delete.attribute-name`.
+
+**Before (v1.x):**
+```yaml
+flashapi:
+  soft-delete:
+    column-name: deletedAt
+```
+
+**After (v2.0.0):**
+```yaml
+flashapi:
+  soft-delete:
+    attribute-name: deletedAt
+```
+
+**Why:** The value was always a Java attribute name (e.g., `deletedAt`), not a SQL column name (e.g., `deleted_at`). The old name was misleading.
+
+**Find and replace:**
+- `column-name` → `attribute-name` in your `application.yml` or `application.properties`
+- `flashapi.soft-delete.column-name` → `flashapi.soft-delete.attribute-name`
+
+### New Features
+
+#### ManyToOne FK resolution
+
+You no longer need explicit FK fields for `@ManyToOne` relations. FlashAPI resolves `categoryId` in the request body automatically.
+
+**Before (v1.x) — explicit FK field required:**
+```java
+@Column(name = "category_id")
+private Long categoryId;
+
+@ManyToOne
+@JoinColumn(name = "category_id", insertable = false, updatable = false)
+private Category category;
+```
+
+**After (v2.0.0) — just the relation:**
+```java
+@ManyToOne
+private Category category;  // Send categoryId in the body, it just works
+```
+
+Both patterns still work. The explicit FK field is not deprecated.
+
+#### Typed error responses
+
+All error responses now follow a consistent format:
+
+```json
+{
+  "status": 404,
+  "error": "Entity not found"
+}
+```
+
+If you have frontend code parsing error responses, it can now rely on the `status` and `error` fields being present on all errors.
+
+#### Field selection
+
+New `?fields=` query parameter for sparse fieldsets:
+
+```
+GET /api/products?fields=id,name
+```
+
+No migration needed — this is additive.
+
+#### Lifecycle hooks
+
+New annotations for injecting business logic at CRUD events:
+
+```java
+@Component
+public class ProductHooks {
+    @FlashBeforeCreate
+    public void validate(Object entity, HttpServletRequest request) {
+        // your logic
+    }
+}
+```
+
+No migration needed — this is additive.
+
+#### Relation filters
+
+Filter by related entity fields using dot-notation:
+
+```
+GET /api/products?category.id=5
+GET /api/products?category.name.contains=Electronics
+```
+
+No migration needed — this is additive.
+
+#### Feature guard
+
+New `@FeatureGuard` annotation for record-count limits:
+
+```java
+@Entity
+@FlashEntity
+@FeatureGuard(max = 100)
+public class Product { ... }
+```
+
+No migration needed — this is additive.
+
+---
+
+## Deprecation Policy
+
+Spring FlashAPI follows this deprecation lifecycle:
+
+1. **Deprecated** — The old API is marked `@Deprecated(forRemoval = true)` and still works. A compiler warning is emitted. Documentation shows the replacement.
+2. **Removed** — The old API is deleted in the next major version.
+
+Deprecations are always announced in:
+- The CHANGELOG (auto-generated)
+- This migration guide (with before/after examples)
+- The `@Deprecated` annotation in code (visible in your IDE)

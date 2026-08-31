@@ -309,6 +309,7 @@ flashapi.websocket.enabled=true
 | [Soft Delete](docs/soft-delete.md) | Timestamp-based soft delete |
 | [Audit Trail](docs/audit.md) | Change tracking and history |
 | [Configuration](docs/configuration.md) | All available properties |
+| [Migration Guide](docs/migration.md) | Upgrading between major versions |
 | [Progressive Disclosure](docs/progressive-disclosure.md) | The framework philosophy |
 
 ## Requirements
