@@ -102,6 +102,31 @@ public final class FlashEndpointHandler {
                 featureGuardHandler.checkLimit(controller.getMetadata(), request);
             }
 
+            // Owner-based access control for UPDATE/DELETE
+            if (("update".equals(operation) || "delete".equals(operation))
+                    && controller.getMetadata().hasOwnerField() && securityEvaluator != null) {
+                Object id = extractId(request);
+                var entity = controller.findEntityForOwnerCheck(id);
+                if (entity.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", controller.getMetadata().entityName() + " not found", "status", 404));
+                }
+                SecurityResult ownerResult = securityEvaluator.evaluateOwnership(
+                        controller.getMetadata(), entity.get());
+                if (ownerResult == SecurityResult.FORBIDDEN) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "You can only modify your own resources", "status", 403));
+                }
+                if (ownerResult == SecurityResult.UNAUTHENTICATED) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("error", "Authentication required", "status", 401));
+                }
+                // Entity exists and user is owner, proceed with operation
+                return "update".equals(operation)
+                        ? controller.update(id, body != null ? body : Map.of())
+                        : controller.delete(id);
+            }
+
             return switch (operation) {
                 case "list" -> controller.list(params != null ? params : Map.of());
                 case "getById" -> controller.getById(extractId(request), params);

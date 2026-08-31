@@ -60,13 +60,15 @@ Result: all endpoints for `Invoice` require the `ADMIN` role. Unauthenticated us
 
 ```java
 @FlashSecured(
-    roles = {},     // Required for ALL operations (fallback)
-    read = {},      // Required for LIST and GET by ID
-    write = {},     // Required for CREATE, UPDATE, DELETE
-    create = {},    // Required for POST (overrides write)
-    update = {},    // Required for PUT (overrides write)
-    delete = {},    // Required for DELETE (overrides write)
-    list = {}       // Required for GET collection (overrides read)
+    roles = {},            // Required for ALL operations (fallback)
+    read = {},             // Required for LIST and GET by ID
+    write = {},            // Required for CREATE, UPDATE, DELETE
+    create = {},           // Required for POST (overrides write)
+    update = {},           // Required for PUT (overrides write)
+    delete = {},           // Required for DELETE (overrides write)
+    list = {},             // Required for GET collection (overrides read)
+    ownerField = "",       // Field name for owner-based access control
+    ownerAdminRoles = {}   // Roles that bypass the owner check
 )
 ```
 
@@ -98,6 +100,94 @@ FlashAPI checks both the raw authority name and the `ROLE_` prefixed version:
 ```
 
 Any role in the list matching grants access (OR logic, not AND).
+
+---
+
+## Owner-Based Access Control
+
+Restrict UPDATE and DELETE to the entity owner. The owner is identified by comparing a field on the entity with the authenticated user's principal name.
+
+### Basic Usage
+
+```java
+@Entity
+@FlashEntity
+@FlashSecured(
+    roles = "authenticated",
+    ownerField = "ownerId"
+)
+public class Post {
+    @Id @GeneratedValue
+    private Long id;
+    private String title;
+    private String ownerId;  // Compared with SecurityContext principal name
+}
+```
+
+- **CREATE/LIST/READ**: Any authenticated user (from `roles`)
+- **UPDATE/DELETE**: Only if `post.ownerId == currentUser.getName()`
+
+### With @ManyToOne Relation
+
+```java
+@Entity
+@FlashEntity
+@FlashSecured(
+    roles = "authenticated",
+    ownerField = "author"
+)
+public class Post {
+    @Id @GeneratedValue
+    private Long id;
+    private String title;
+
+    @ManyToOne
+    private User author;  // author.id is compared with principal name
+}
+```
+
+For relation fields, FlashAPI extracts the `@Id` of the related entity and compares it with the principal name.
+
+### Admin Bypass
+
+```java
+@FlashSecured(
+    roles = "authenticated",
+    ownerField = "ownerId",
+    ownerAdminRoles = {"ADMIN", "MODERATOR"}
+)
+```
+
+Users with `ADMIN` or `MODERATOR` roles can UPDATE/DELETE any entity regardless of ownership.
+
+### Supported Field Types
+
+| Field Type | Comparison |
+|------------|------------|
+| `String` | Direct comparison with `principal.getName()` |
+| `Long` / `Integer` | `toString()` compared with `principal.getName()` |
+| `UUID` | `toString()` compared with `principal.getName()` |
+| `@ManyToOne` relation | Extracts `@Id` from related entity, compares with `principal.getName()` |
+
+### Behavior
+
+| Scenario | Result |
+|----------|--------|
+| Owner updates own entity | 200 OK |
+| Non-owner updates entity | 403 Forbidden |
+| Non-owner deletes entity | 403 Forbidden |
+| Admin updates any entity | 200 OK (bypasses owner check) |
+| Owner field is null | 403 Forbidden (fail closed) |
+| No authentication | 401 Unauthorized |
+
+### Error Response
+
+```json
+{
+  "error": "You can only modify your own resources",
+  "status": 403
+}
+```
 
 ---
 

@@ -60,4 +60,24 @@ public @interface FlashSecured {
      * Roles required for LIST (GET collection). Overrides read() and roles().
      */
     String[] list() default {};
+
+    /**
+     * Java field name of the owner relation or scalar on this entity.
+     * When set, UPDATE and DELETE are restricted to the entity owner.
+     *
+     * The owner is resolved by comparing the field value against the
+     * current principal from SecurityContext:
+     * - @ManyToOne field: compares relation.id with principal name
+     * - Scalar field (Long, UUID, String): compares directly with principal name
+     *
+     * Empty string (default) disables owner-based access control.
+     */
+    String ownerField() default "";
+
+    /**
+     * Roles that bypass the owner check (e.g., admin roles).
+     * Users with any of these roles can UPDATE/DELETE any entity
+     * regardless of ownership.
+     */
+    String[] ownerAdminRoles() default {};
 }

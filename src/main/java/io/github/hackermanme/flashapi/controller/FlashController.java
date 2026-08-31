@@ -326,6 +326,12 @@ public final class FlashController {
         return metadata;
     }
 
+    public Optional<Object> findEntityForOwnerCheck(Object id) {
+        return customService != null
+                ? customService.findById(id).map(e -> (Object) e)
+                : crudService.findById(metadata, id);
+    }
+
     private Map<String, Object> serialize(Object entity, Set<String> expandFields, Set<String> selectedFields) {
         if (expandFields != null && !expandFields.isEmpty() && metadata.hasRelations()) {
             Map<String, Object> expanded = relationExpander.serialize(metadata, entity, expandFields);

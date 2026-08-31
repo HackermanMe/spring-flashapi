@@ -36,7 +36,11 @@ public record EntityMetadata(
         List<RelationMetadata> relations,
         Map<String, RelationMetadata> relationsByName,
         List<ManyToOneDescriptor> manyToOneDescriptors,
-        Map<String, ManyToOneDescriptor> manyToOneByFkName
+        Map<String, ManyToOneDescriptor> manyToOneByFkName,
+        String ownerFieldName,
+        java.lang.reflect.Field ownerJavaField,
+        boolean ownerFieldIsRelation,
+        String[] ownerAdminRoles
 ) {
     public boolean isOperationAllowed(CrudOperation op) {
         return allowedOperations.contains(op);
@@ -52,5 +56,9 @@ public record EntityMetadata(
 
     public boolean hasCustomLookupField() {
         return lookupFieldName != null && !lookupFieldName.equals(idFieldName);
+    }
+
+    public boolean hasOwnerField() {
+        return ownerFieldName != null && !ownerFieldName.isEmpty();
     }
 }

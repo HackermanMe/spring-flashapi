@@ -26,6 +26,15 @@ public class SpringSecurityEvaluator extends SecurityEvaluator {
     }
 
     @Override
+    protected String getCurrentPrincipalName() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+        return auth.getName();
+    }
+
+    @Override
     protected Collection<String> getCurrentAuthorities() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) {

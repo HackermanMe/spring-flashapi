@@ -6,6 +6,7 @@ import io.github.hackermanme.flashapi.annotation.FlashExportExclude;
 import io.github.hackermanme.flashapi.annotation.FlashHidden;
 import io.github.hackermanme.flashapi.annotation.FlashMultiTenant;
 import io.github.hackermanme.flashapi.annotation.FlashReadOnly;
+import io.github.hackermanme.flashapi.annotation.FlashSecured;
 import io.github.hackermanme.flashapi.annotation.FlashWriteOnly;
 import jakarta.persistence.*;
 import org.slf4j.Logger;
@@ -142,6 +143,36 @@ public final class EntityScanner {
         Map<String, ManyToOneDescriptor> manyToOneByFkName = manyToOneDescriptors.stream()
                 .collect(Collectors.toUnmodifiableMap(ManyToOneDescriptor::fkFieldName, Function.identity()));
 
+        // Owner-based access control
+        FlashSecured securedAnnotation = clazz.getAnnotation(FlashSecured.class);
+        String ownerFieldName = null;
+        Field ownerJavaField = null;
+        boolean ownerFieldIsRelation = false;
+        String[] ownerAdminRoles = new String[0];
+
+        if (securedAnnotation != null && !securedAnnotation.ownerField().isEmpty()) {
+            ownerFieldName = securedAnnotation.ownerField();
+            ownerAdminRoles = securedAnnotation.ownerAdminRoles();
+
+            // Check if it's a relation field
+            RelationMetadata ownerRelation = relationsByName.get(ownerFieldName);
+            if (ownerRelation != null) {
+                ownerFieldIsRelation = true;
+                ownerJavaField = ownerRelation.javaField();
+                ownerJavaField.setAccessible(true);
+            } else {
+                // Check scalar fields
+                FieldMetadata ownerScalar = fieldsByName.get(ownerFieldName);
+                if (ownerScalar != null) {
+                    ownerJavaField = ownerScalar.javaField();
+                } else {
+                    throw new IllegalStateException(
+                            "@FlashSecured on " + clazz.getName() + " specifies ownerField='"
+                                    + ownerFieldName + "' which does not exist on the entity");
+                }
+            }
+        }
+
         return new EntityMetadata(
                 clazz, clazz.getSimpleName(), path,
                 pkField.name(), pkField.type(),
@@ -152,7 +183,8 @@ public final class EntityScanner {
                 ops, immutableFields, fieldsByName,
                 creatableFields, updatableFields, visibleFields, exportableFields, pkField,
                 immutableRelations, relationsByName,
-                manyToOneDescriptors, manyToOneByFkName
+                manyToOneDescriptors, manyToOneByFkName,
+                ownerFieldName, ownerJavaField, ownerFieldIsRelation, ownerAdminRoles
         );
     }
 
