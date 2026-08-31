@@ -5,7 +5,10 @@
       "package-name": "spring-flashapi",
       "bump-minor-pre-major": true,
       "extra-files": [
-        "README.md"
+        {
+          "type": "generic",
+          "path": "README.md"
+        }
       ]
     }
   }
