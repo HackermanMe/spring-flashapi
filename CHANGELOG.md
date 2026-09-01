@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.0.0](https://github.com/HackermanMe/spring-flashapi/compare/v2.0.0...v3.0.0) (2026-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* @FlashAudit, @FlashMultiTenant, @FlashWebhook, and @FeatureGuard are deprecated. Use @FlashEntity attributes instead: audit/trackFields, tenantField, webhook/webhookEvents, maxRecords. Old annotations still work but will be removed in the next major version.
+
+### Features
+
+* add declarative counters via @FlashCounter (Closes [#18](https://github.com/HackermanMe/spring-flashapi/issues/18)) ([8d6aa90](https://github.com/HackermanMe/spring-flashapi/commit/8d6aa90e8f6ce857ab9290ecac2feb397378b6b4))
+* add owner-based access control via @FlashSecured ownerField (Closes [#16](https://github.com/HackermanMe/spring-flashapi/issues/16)) ([f5ca20e](https://github.com/HackermanMe/spring-flashapi/commit/f5ca20e26b6c48c7b1b67fd16e16cf433300ecae))
+* auto-inject authenticated user via @FlashEntity(currentUserField) (Closes [#17](https://github.com/HackermanMe/spring-flashapi/issues/17)) ([154e4d5](https://github.com/HackermanMe/spring-flashapi/commit/154e4d503d0387398d36d6816777354a4a301608))
+
+
+### Bug Fixes
+
+* sync README version to 2.0.0 and fix release-please config ([c39efd4](https://github.com/HackermanMe/spring-flashapi/commit/c39efd4c2360b9169404a73e165466b0476d6cfd))
+
+
+### Documentation
+
+* add migration guide and update release notes for v2.0.0 ([2bac4e2](https://github.com/HackermanMe/spring-flashapi/commit/2bac4e241fde4658940cd20d09082807e18b4793))
+
+
+### Code Refactoring
+
+* consolidate @FlashAudit, @FlashMultiTenant, @FlashWebhook, @FeatureGuard into @FlashEntity (Closes [#19](https://github.com/HackermanMe/spring-flashapi/issues/19)) ([6d3f237](https://github.com/HackermanMe/spring-flashapi/commit/6d3f23721c8f41067db2493614d358cf2a73efa2))
+
 ## [2.0.0](https://github.com/HackermanMe/spring-flashapi/compare/v1.1.0...v2.0.0) (2026-08-31)
 
 
