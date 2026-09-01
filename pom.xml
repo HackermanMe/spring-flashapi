@@ -4,7 +4,7 @@
 
     <groupId>io.github.hackermanme</groupId>
     <artifactId>spring-flashapi</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Spring FlashAPI</name>
