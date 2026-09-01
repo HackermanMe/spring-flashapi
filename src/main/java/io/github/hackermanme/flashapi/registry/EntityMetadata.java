@@ -40,7 +40,12 @@ public record EntityMetadata(
         String ownerFieldName,
         java.lang.reflect.Field ownerJavaField,
         boolean ownerFieldIsRelation,
-        String[] ownerAdminRoles
+        String[] ownerAdminRoles,
+        String currentUserFieldName,
+        java.lang.reflect.Field currentUserJavaField,
+        boolean currentUserFieldIsRelation,
+        Class<?> currentUserTargetEntity,
+        Class<?> currentUserTargetIdType
 ) {
     public boolean isOperationAllowed(CrudOperation op) {
         return allowedOperations.contains(op);
@@ -60,5 +65,9 @@ public record EntityMetadata(
 
     public boolean hasOwnerField() {
         return ownerFieldName != null && !ownerFieldName.isEmpty();
+    }
+
+    public boolean hasCurrentUserField() {
+        return currentUserFieldName != null && !currentUserFieldName.isEmpty();
     }
 }

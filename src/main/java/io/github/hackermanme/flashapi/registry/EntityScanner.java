@@ -173,6 +173,33 @@ public final class EntityScanner {
             }
         }
 
+        // Current user field auto-injection
+        String currentUserFieldName = annotation.currentUserField().isEmpty() ? null : annotation.currentUserField();
+        Field currentUserJavaField = null;
+        boolean currentUserFieldIsRelation = false;
+        Class<?> currentUserTargetEntity = null;
+        Class<?> currentUserTargetIdType = null;
+
+        if (currentUserFieldName != null) {
+            RelationMetadata curUserRelation = relationsByName.get(currentUserFieldName);
+            if (curUserRelation != null) {
+                currentUserFieldIsRelation = true;
+                currentUserJavaField = curUserRelation.javaField();
+                currentUserJavaField.setAccessible(true);
+                currentUserTargetEntity = curUserRelation.targetEntity();
+                currentUserTargetIdType = extractIdType(currentUserTargetEntity);
+            } else {
+                FieldMetadata curUserScalar = fieldsByName.get(currentUserFieldName);
+                if (curUserScalar != null) {
+                    currentUserJavaField = curUserScalar.javaField();
+                } else {
+                    throw new IllegalStateException(
+                            "@FlashEntity on " + clazz.getName() + " specifies currentUserField='"
+                                    + currentUserFieldName + "' which does not exist on the entity");
+                }
+            }
+        }
+
         return new EntityMetadata(
                 clazz, clazz.getSimpleName(), path,
                 pkField.name(), pkField.type(),
@@ -184,7 +211,9 @@ public final class EntityScanner {
                 creatableFields, updatableFields, visibleFields, exportableFields, pkField,
                 immutableRelations, relationsByName,
                 manyToOneDescriptors, manyToOneByFkName,
-                ownerFieldName, ownerJavaField, ownerFieldIsRelation, ownerAdminRoles
+                ownerFieldName, ownerJavaField, ownerFieldIsRelation, ownerAdminRoles,
+                currentUserFieldName, currentUserJavaField, currentUserFieldIsRelation,
+                currentUserTargetEntity, currentUserTargetIdType
         );
     }
 

@@ -58,6 +58,14 @@ public @interface FlashEntity {
     String lookupField() default "";
 
     /**
+     * Field name to auto-inject the authenticated user's identity on CREATE.
+     * Supports scalar fields (String, Long, UUID) and @ManyToOne relations.
+     * The field is stripped from the request body (client cannot override)
+     * and treated as read-only on UPDATE.
+     */
+    String currentUserField() default "";
+
+    /**
      * Enable rate limiting for this entity's endpoints.
      */
     boolean rateLimit() default false;

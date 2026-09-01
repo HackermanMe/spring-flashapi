@@ -189,6 +189,25 @@ Users with `ADMIN` or `MODERATOR` roles can UPDATE/DELETE any entity regardless 
 }
 ```
 
+### Synergy with `currentUserField`
+
+Use `@FlashEntity(currentUserField)` to auto-set the owner on CREATE, and `@FlashSecured(ownerField)` to enforce ownership on UPDATE/DELETE:
+
+```java
+@Entity
+@FlashEntity(currentUserField = "author")
+@FlashSecured(roles = "authenticated", ownerField = "author", ownerAdminRoles = {"ADMIN"})
+public class Post {
+    @Id @GeneratedValue
+    private Long id;
+    private String title;
+    @ManyToOne
+    private User author;  // Auto-set on CREATE, enforced on UPDATE/DELETE
+}
+```
+
+See [Current User Field](current-user-field.md) for details.
+
 ---
 
 ## Examples

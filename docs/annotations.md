@@ -36,6 +36,7 @@ This generates: `GET/POST /products`, `GET/PUT/DELETE /products/{id}`
 | `rateLimitRequests` | int | `100` | Max requests per window per IP |
 | `rateLimitWindow` | int | `60` | Rate limit window in seconds |
 | `lookupField` | String | `""` | Use a custom field instead of the primary key in URLs (e.g. a UUID field) |
+| `currentUserField` | String | `""` | Auto-inject authenticated user into this field on CREATE; stripped from body, read-only on UPDATE |
 
 > All entities are automatically documented in the [OpenAPI spec](openapi.md) served at `/api/docs`.
 

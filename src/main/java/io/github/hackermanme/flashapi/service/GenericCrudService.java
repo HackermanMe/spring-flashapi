@@ -157,8 +157,10 @@ public class GenericCrudService {
     public Object create(EntityMetadata meta, Map<String, Object> data) {
         Map<String, Object> mutableData = new HashMap<>(data);
         tenantHandler.injectTenant(meta, mutableData);
+        stripCurrentUserField(meta, mutableData);
         Object instance = instantiate(meta);
         applyFields(instance, meta.creatableFields(), mutableData, meta);
+        injectCurrentUser(meta, instance);
         fillAuditFields(instance, true);
 
         HttpServletRequest request = getCurrentRequest();
@@ -187,7 +189,9 @@ public class GenericCrudService {
         // Snapshot before for audit diff
         Map<String, Object> beforeSnapshot = meta.auditTrackFields() ? snapshot(meta, instance) : null;
 
-        applyFields(instance, meta.updatableFields(), data, meta);
+        Map<String, Object> mutableUpdateData = new HashMap<>(data);
+        stripCurrentUserField(meta, mutableUpdateData);
+        applyFields(instance, meta.updatableFields(), mutableUpdateData, meta);
         fillAuditFields(instance, false);
 
         HttpServletRequest request = getCurrentRequest();
@@ -560,6 +564,42 @@ public class GenericCrudService {
         } catch (Exception e) {
             throw new IllegalStateException("FlashAPI: failed to hash password", e);
         }
+    }
+
+    private void stripCurrentUserField(EntityMetadata meta, Map<String, Object> data) {
+        if (!meta.hasCurrentUserField()) return;
+        data.remove(meta.currentUserFieldName());
+        if (meta.currentUserFieldIsRelation()) {
+            data.remove(meta.currentUserFieldName() + "Id");
+        }
+    }
+
+    private void injectCurrentUser(EntityMetadata meta, Object instance) {
+        if (!meta.hasCurrentUserField()) return;
+        String currentUser = resolveCurrentUser();
+        if (currentUser == null) return;
+
+        try {
+            if (meta.currentUserFieldIsRelation()) {
+                Object convertedId = convertPrincipalToIdType(currentUser, meta.currentUserTargetIdType());
+                Object reference = entityManager.getReference(meta.currentUserTargetEntity(), convertedId);
+                meta.currentUserJavaField().set(instance, reference);
+            } else {
+                Class<?> fieldType = meta.currentUserJavaField().getType();
+                Object convertedValue = convertPrincipalToIdType(currentUser, fieldType);
+                meta.currentUserJavaField().set(instance, convertedValue);
+            }
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Cannot inject current user into " + meta.currentUserFieldName(), e);
+        }
+    }
+
+    private Object convertPrincipalToIdType(String principalName, Class<?> targetType) {
+        if (targetType == String.class) return principalName;
+        if (targetType == Long.class || targetType == long.class) return Long.parseLong(principalName);
+        if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(principalName);
+        if (targetType == java.util.UUID.class) return java.util.UUID.fromString(principalName);
+        return principalName;
     }
 
     private void fillAuditFields(Object instance, boolean isCreate) {
