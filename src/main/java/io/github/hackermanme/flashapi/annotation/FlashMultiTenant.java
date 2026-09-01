@@ -6,12 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Enables multi-tenancy for this entity. All CRUD operations are automatically
- * scoped to the current tenant — no cross-tenant data leakage.
- *
- * The specified field must exist on the entity and be of type String.
- * FlashAPI auto-sets it on CREATE and filters all queries by it.
+ * @deprecated Use {@code @FlashEntity(tenantField = "tenantId")} instead.
+ * Kept for backward compatibility. Will be removed in the next major version.
  */
+@Deprecated
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FlashMultiTenant {

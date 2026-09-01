@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Enables webhook notifications for this entity.
- * FlashAPI sends an HTTP POST to configured URLs on create/update/delete events.
- * Webhooks are fired asynchronously — they never block the API response.
+ * @deprecated Use {@code @FlashEntity(webhook = true)} instead.
+ * Kept for backward compatibility. Will be removed in the next major version.
  */
+@Deprecated
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FlashWebhook {

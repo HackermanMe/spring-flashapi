@@ -1,13 +1,11 @@
 package io.github.hackermanme.flashapi.entity;
 
-import io.github.hackermanme.flashapi.annotation.FeatureGuard;
 import io.github.hackermanme.flashapi.annotation.FlashEntity;
 import io.github.hackermanme.flashapi.annotation.FlashReadOnly;
 import jakarta.persistence.*;
 
 @Entity
-@FlashEntity
-@FeatureGuard(max = 3)
+@FlashEntity(maxRecords = 3)
 public class GuardedItem {
 
     @Id

@@ -1,6 +1,5 @@
 package io.github.hackermanme.flashapi.guard;
 
-import io.github.hackermanme.flashapi.annotation.FeatureGuard;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -8,8 +7,8 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Enforces @FeatureGuard record-count limits before CREATE operations.
- * Resolution priority: PlanLimitResolver bean > @FeatureGuard(max) > no limit.
+ * Enforces record-count limits before CREATE operations.
+ * Resolution priority: PlanLimitResolver bean > EntityMetadata.maxRecords > no limit.
  */
 public class FeatureGuardHandler {
 
@@ -21,54 +20,28 @@ public class FeatureGuardHandler {
         this.planLimitResolver = planLimitResolver;
     }
 
-    /**
-     * Check if the entity has reached its record limit. Throws RecordLimitExceededException if so.
-     *
-     * @param meta    the entity metadata
-     * @param request the current HTTP request (used by PlanLimitResolver)
-     */
     public void checkLimit(EntityMetadata meta, HttpServletRequest request) {
         long limit = resolveLimit(meta, request);
-        if (limit < 0) return;
-
-        long currentCount = countRecords(meta);
-        if (currentCount >= limit) {
+        if (limit <= 0) return;
+        if (countRecords(meta) >= limit) {
             throw new RecordLimitExceededException(meta.entityName(), limit);
         }
     }
 
-    /**
-     * Check if adding N records would exceed the limit.
-     *
-     * @param meta    the entity metadata
-     * @param request the current HTTP request
-     * @param adding  number of records about to be created
-     */
     public void checkLimit(EntityMetadata meta, HttpServletRequest request, int adding) {
         long limit = resolveLimit(meta, request);
-        if (limit < 0) return;
-
-        long currentCount = countRecords(meta);
-        if (currentCount + adding > limit) {
+        if (limit <= 0) return;
+        if (countRecords(meta) + adding > limit) {
             throw new RecordLimitExceededException(meta.entityName(), limit);
         }
     }
 
     private long resolveLimit(EntityMetadata meta, HttpServletRequest request) {
-        // Priority 1: PlanLimitResolver bean
         if (planLimitResolver != null) {
             long resolved = planLimitResolver.resolveLimit(meta.entityName(), request);
             if (resolved != -1) return resolved;
         }
-
-        // Priority 2: @FeatureGuard annotation
-        FeatureGuard annotation = meta.entityClass().getAnnotation(FeatureGuard.class);
-        if (annotation != null && annotation.max() > 0) {
-            return annotation.max();
-        }
-
-        // No limit
-        return -1;
+        return meta.maxRecords() > 0 ? meta.maxRecords() : -1;
     }
 
     private long countRecords(EntityMetadata meta) {

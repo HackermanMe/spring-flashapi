@@ -6,9 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Controls audit behavior for a @FlashEntity.
- * By default, audit is enabled for all entities. Use this to disable or configure.
+ * @deprecated Use {@code @FlashEntity(audit = true, trackFields = true)} instead.
+ * Kept for backward compatibility. Will be removed in the next major version.
  */
+@Deprecated
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FlashAudit {

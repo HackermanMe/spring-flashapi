@@ -63,10 +63,8 @@ public final class WebhookDispatcher {
     }
 
     private boolean shouldFire(EntityMetadata meta, String event) {
-        var annotation = meta.entityClass()
-                .getAnnotation(io.github.hackermanme.flashapi.annotation.FlashWebhook.class);
-        if (annotation == null) return false;
-        return Arrays.asList(annotation.events()).contains(event);
+        if (!meta.webhookEnabled()) return false;
+        return Arrays.asList(meta.webhookEvents()).contains(event);
     }
 
     private void deliver(String url, WebhookEvent payload) {

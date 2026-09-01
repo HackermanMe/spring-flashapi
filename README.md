@@ -70,9 +70,9 @@ DELETE /api/products/bulk                — batch delete
 - **Authorization** — `@FlashSecured` for role-based and owner-based endpoint access control
 - **Auto-inject user** — `currentUserField` auto-sets the authenticated user on CREATE, stripped from body
 - **Declarative counters** — `@FlashCounter` for auto-maintained denormalized counts (likes, comments)
-- **Feature guard** — `@FeatureGuard(max = N)` for record-count limits with dynamic `PlanLimitResolver`
-- **Multi-tenancy** — `@FlashMultiTenant` for automatic data isolation per tenant
-- **Webhooks** — `@FlashWebhook` for real-time event notifications to external systems
+- **Feature guard** — `maxRecords` for record-count limits with dynamic `PlanLimitResolver`
+- **Multi-tenancy** — `tenantField` for automatic data isolation per tenant
+- **Webhooks** — `webhook` for real-time event notifications to external systems
 - **Lifecycle hooks** — `@FlashBeforeCreate`, `@FlashAfterUpdate`, etc. for injecting business logic at CRUD events
 - **Spring Security aware** — audit resolves current user automatically
 - **Type-safe IDs** — supports Long, Integer, UUID, String
@@ -106,8 +106,7 @@ public class MyApp {
 
 ```java
 @Entity
-@FlashEntity(softDelete = true)
-@FlashAudit(trackFields = true)
+@FlashEntity(softDelete = true, audit = true, trackFields = true)
 public class User {
 
     @Id @GeneratedValue

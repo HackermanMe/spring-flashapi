@@ -1,12 +1,10 @@
 package io.github.hackermanme.flashapi.entity;
 
 import io.github.hackermanme.flashapi.annotation.FlashEntity;
-import io.github.hackermanme.flashapi.annotation.FlashWebhook;
 import jakarta.persistence.*;
 
 @Entity
-@FlashEntity
-@FlashWebhook(events = {"CREATE", "UPDATE", "DELETE"})
+@FlashEntity(webhook = true)
 public class WebhookItem {
 
     @Id

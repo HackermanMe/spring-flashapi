@@ -1,12 +1,10 @@
 package io.github.hackermanme.flashapi.entity;
 
 import io.github.hackermanme.flashapi.annotation.FlashEntity;
-import io.github.hackermanme.flashapi.annotation.FlashMultiTenant;
 import jakarta.persistence.*;
 
 @Entity
-@FlashEntity
-@FlashMultiTenant(field = "tenantId")
+@FlashEntity(tenantField = "tenantId")
 public class TenantItem {
 
     @Id

@@ -64,12 +64,33 @@ public final class EntityScanner {
         FlashEntity annotation = clazz.getAnnotation(FlashEntity.class);
         FlashAudit auditAnnotation = clazz.getAnnotation(FlashAudit.class);
         FlashMultiTenant multiTenantAnnotation = clazz.getAnnotation(FlashMultiTenant.class);
+        io.github.hackermanme.flashapi.annotation.FlashWebhook webhookAnnotation =
+                clazz.getAnnotation(io.github.hackermanme.flashapi.annotation.FlashWebhook.class);
+        io.github.hackermanme.flashapi.annotation.FeatureGuard guardAnnotation =
+                clazz.getAnnotation(io.github.hackermanme.flashapi.annotation.FeatureGuard.class);
 
         String path = annotation.path().isEmpty() ? pluralize(clazz.getSimpleName()) : annotation.path();
         Set<CrudOperation> ops = resolveOperations(annotation);
-        boolean auditEnabled = auditAnnotation != null && auditAnnotation.enabled();
-        boolean auditTrackFields = auditAnnotation != null && auditAnnotation.trackFields();
-        String tenantField = multiTenantAnnotation != null ? multiTenantAnnotation.field() : null;
+
+        // Audit: @FlashEntity(audit) takes precedence, fallback to @FlashAudit
+        boolean auditEnabled = annotation.audit()
+                || (auditAnnotation != null && auditAnnotation.enabled());
+        boolean auditTrackFields = annotation.trackFields()
+                || (auditAnnotation != null && auditAnnotation.trackFields());
+
+        // Tenant: @FlashEntity(tenantField) takes precedence, fallback to @FlashMultiTenant
+        String tenantField = !annotation.tenantField().isEmpty() ? annotation.tenantField()
+                : (multiTenantAnnotation != null ? multiTenantAnnotation.field() : null);
+
+        // Webhook: @FlashEntity(webhook) takes precedence, fallback to @FlashWebhook
+        boolean webhookEnabled = annotation.webhook() || webhookAnnotation != null;
+        String[] webhookEvents = annotation.webhook() ? annotation.webhookEvents()
+                : (webhookAnnotation != null ? webhookAnnotation.events()
+                : new String[]{"CREATE", "UPDATE", "DELETE"});
+
+        // Feature guard: @FlashEntity(maxRecords) takes precedence, fallback to @FeatureGuard
+        long maxRecords = annotation.maxRecords() > 0 ? annotation.maxRecords()
+                : (guardAnnotation != null && guardAnnotation.max() > 0 ? guardAnnotation.max() : 0);
 
         List<FieldMetadata> fields = new ArrayList<>();
         List<RelationMetadata> relations = new ArrayList<>();
@@ -215,7 +236,8 @@ public final class EntityScanner {
                 manyToOneDescriptors, manyToOneByFkName,
                 ownerFieldName, ownerJavaField, ownerFieldIsRelation, ownerAdminRoles,
                 currentUserFieldName, currentUserJavaField, currentUserFieldIsRelation,
-                currentUserTargetEntity, currentUserTargetIdType
+                currentUserTargetEntity, currentUserTargetIdType,
+                webhookEnabled, webhookEvents, maxRecords
         );
     }
 

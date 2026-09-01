@@ -37,6 +37,12 @@ This generates: `GET/POST /products`, `GET/PUT/DELETE /products/{id}`
 | `rateLimitWindow` | int | `60` | Rate limit window in seconds |
 | `lookupField` | String | `""` | Use a custom field instead of the primary key in URLs (e.g. a UUID field) |
 | `currentUserField` | String | `""` | Auto-inject authenticated user into this field on CREATE; stripped from body, read-only on UPDATE |
+| `audit` | boolean | `false` | Enable audit logging (replaces `@FlashAudit`) |
+| `trackFields` | boolean | `false` | Log field-level changes. Only used if `audit=true` |
+| `tenantField` | String | `""` | Field name for multi-tenant isolation (replaces `@FlashMultiTenant`) |
+| `webhook` | boolean | `false` | Enable webhook notifications (replaces `@FlashWebhook`) |
+| `webhookEvents` | String[] | `{"CREATE","UPDATE","DELETE"}` | Webhook events to fire. Only used if `webhook=true` |
+| `maxRecords` | long | `0` | Max records allowed, 0 = unlimited (replaces `@FeatureGuard`) |
 
 > All entities are automatically documented in the [OpenAPI spec](openapi.md) served at `/api/docs`.
 
@@ -112,60 +118,27 @@ The OpenAPI/Swagger documentation at `/api/docs` automatically reflects the look
 - `Category` → `categories`
 - `Address` → `addresses`
 
-### `@FlashAudit`
+### `@FlashAudit` *(deprecated)*
 
-Enables audit trail for an entity. Records who did what and when.
+> **Use `@FlashEntity(audit = true, trackFields = true)` instead.** Still functional for backward compatibility.
 
-```java
-@Entity
-@FlashEntity
-@FlashAudit(trackFields = true)
-public class Order {
-    // ...
-}
-```
+### `@FlashWebhook` *(deprecated)*
 
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable/disable audit for this entity |
-| `trackFields` | boolean | `false` | Track field-level changes (old value → new value) |
-
-### `@FlashWebhook`
-
-Fires HTTP POST notifications to configured URLs on data changes.
-
-```java
-@Entity
-@FlashEntity
-@FlashWebhook(events = {"CREATE", "DELETE"})
-public class Payment { ... }
-```
-
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `events` | String[] | `{"CREATE", "UPDATE", "DELETE"}` | Events that trigger notifications |
+> **Use `@FlashEntity(webhook = true)` instead.** Customize events with `webhookEvents = {"CREATE", "DELETE"}`. Still functional for backward compatibility.
 
 Configure receiver URLs via `flashapi.webhook.urls`. See [Webhooks](webhooks.md) for full details.
 
-### `@FlashMultiTenant`
+### `@FlashMultiTenant` *(deprecated)*
 
-Enables automatic data isolation per tenant. All queries are filtered, creates are auto-tagged.
+> **Use `@FlashEntity(tenantField = "tenantId")` instead.** Still functional for backward compatibility.
 
-```java
-@Entity
-@FlashEntity
-@FlashMultiTenant(field = "tenantId")
-public class Document {
-    private String tenantId;  // managed by FlashAPI
-    ...
-}
-```
+See [Multi-Tenancy](multi-tenancy.md) for full details.
 
-| Attribute | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `field` | String | `"tenantId"` | Java field name storing the tenant identifier |
+### `@FeatureGuard` *(deprecated)*
 
-Tenant is resolved from HTTP header `X-Tenant-Id` by default (configurable). See [Multi-Tenancy](multi-tenancy.md) for full details.
+> **Use `@FlashEntity(maxRecords = 100)` instead.** Still functional for backward compatibility.
+
+See [Feature Guard](feature-guard.md) for full details.
 
 ### `@FlashSecured`
 

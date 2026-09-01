@@ -1,7 +1,6 @@
 package io.github.hackermanme.flashapi.entity;
 
 import io.github.hackermanme.flashapi.annotation.FlashEntity;
-import io.github.hackermanme.flashapi.annotation.FlashAudit;
 import io.github.hackermanme.flashapi.annotation.FlashReadOnly;
 import io.github.hackermanme.flashapi.annotation.FlashWriteOnly;
 import io.github.hackermanme.flashapi.annotation.FlashHidden;
@@ -11,8 +10,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@FlashEntity(softDelete = true)
-@FlashAudit(trackFields = true)
+@FlashEntity(softDelete = true, audit = true, trackFields = true)
 public class Product {
 
     @Id

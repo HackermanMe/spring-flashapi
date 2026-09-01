@@ -45,7 +45,10 @@ public record EntityMetadata(
         java.lang.reflect.Field currentUserJavaField,
         boolean currentUserFieldIsRelation,
         Class<?> currentUserTargetEntity,
-        Class<?> currentUserTargetIdType
+        Class<?> currentUserTargetIdType,
+        boolean webhookEnabled,
+        String[] webhookEvents,
+        long maxRecords
 ) {
     public boolean isOperationAllowed(CrudOperation op) {
         return allowedOperations.contains(op);

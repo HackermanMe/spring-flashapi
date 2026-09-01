@@ -1,6 +1,6 @@
 package io.github.hackermanme.flashapi.dashboard;
 
-import io.github.hackermanme.flashapi.annotation.FlashWebhook;
+
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 
 import java.time.Instant;
@@ -76,7 +76,7 @@ public final class MetricsCollector {
             Map<String, Long> opsMap = new LinkedHashMap<>();
             ops.forEach((k, v) -> opsMap.put(k, v.get()));
 
-            boolean hasWebhook = meta.entityClass().isAnnotationPresent(FlashWebhook.class);
+            boolean hasWebhook = meta.webhookEnabled();
 
             long entityCount = opsMap.values().stream().mapToLong(Long::longValue).sum();
 

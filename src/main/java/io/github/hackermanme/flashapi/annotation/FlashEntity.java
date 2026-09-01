@@ -79,4 +79,22 @@ public @interface FlashEntity {
      * Rate limit window in seconds. Only used if rateLimit=true.
      */
     int rateLimitWindow() default 60;
+
+    /** Enable audit logging for this entity. Replaces @FlashAudit. */
+    boolean audit() default false;
+
+    /** Log individual field changes (old → new). Only used if audit=true. */
+    boolean trackFields() default false;
+
+    /** Field name for multi-tenant isolation. Replaces @FlashMultiTenant. Empty = disabled. */
+    String tenantField() default "";
+
+    /** Enable webhook notifications on write operations. Replaces @FlashWebhook. */
+    boolean webhook() default false;
+
+    /** Webhook events to fire. Only used if webhook=true. */
+    String[] webhookEvents() default {"CREATE", "UPDATE", "DELETE"};
+
+    /** Maximum records allowed (0 = unlimited). Replaces @FeatureGuard(max). */
+    long maxRecords() default 0;
 }

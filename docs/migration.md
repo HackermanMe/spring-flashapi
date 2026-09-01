@@ -108,16 +108,53 @@ No migration needed — this is additive.
 
 #### Feature guard
 
-New `@FeatureGuard` annotation for record-count limits:
+Record-count limits via `@FlashEntity(maxRecords = 100)`:
 
 ```java
 @Entity
-@FlashEntity
-@FeatureGuard(max = 100)
+@FlashEntity(maxRecords = 100)
 public class Product { ... }
 ```
 
 No migration needed — this is additive.
+
+#### Owner-based access control
+
+Restrict UPDATE/DELETE to the entity owner via `@FlashSecured(ownerField)`:
+
+```java
+@FlashSecured(roles = "authenticated", ownerField = "ownerId", ownerAdminRoles = {"ADMIN"})
+```
+
+#### Auto-inject current user
+
+Auto-set the authenticated user on CREATE via `@FlashEntity(currentUserField)`:
+
+```java
+@FlashEntity(currentUserField = "author")
+```
+
+#### Declarative counters
+
+Auto-maintained denormalized counters via `@FlashCounter`:
+
+```java
+@FlashCounter(source = PostLike.class, relation = "post")
+private int likeCount;
+```
+
+#### Annotation consolidation
+
+`@FlashAudit`, `@FlashMultiTenant`, `@FlashWebhook`, and `@FeatureGuard` are now deprecated. Their functionality is consolidated into `@FlashEntity`:
+
+| Before | After |
+|--------|-------|
+| `@FlashAudit(trackFields = true)` | `@FlashEntity(audit = true, trackFields = true)` |
+| `@FlashMultiTenant(field = "tenantId")` | `@FlashEntity(tenantField = "tenantId")` |
+| `@FlashWebhook` | `@FlashEntity(webhook = true)` |
+| `@FeatureGuard(max = 100)` | `@FlashEntity(maxRecords = 100)` |
+
+The old annotations still work but emit deprecation warnings. They will be removed in the next major version.
 
 ---
 
