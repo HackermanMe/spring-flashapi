@@ -85,7 +85,7 @@ DELETE /api/products/bulk                — batch delete
 <dependency>
     <groupId>io.github.hackermanme</groupId>
     <artifactId>spring-flashapi</artifactId>
-    <version>3.0.0</version> <!-- x-release-please-version -->
+    <version>3.0.1</version> <!-- x-release-please-version -->
 </dependency>
 ```
 
