@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/HackermanMe/spring-flashapi/compare/v3.0.0...v3.0.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* update README version to 3.0.0 and fix release-please marker placement ([7fe3cc3](https://github.com/HackermanMe/spring-flashapi/commit/7fe3cc39164e4c9442148d53b01b3b0be8f692c0))
+
 ## [3.0.0](https://github.com/HackermanMe/spring-flashapi/compare/v2.0.0...v3.0.0) (2026-09-01)
 
 
