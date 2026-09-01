@@ -311,6 +311,24 @@ public class Employee {
 
 Useful when some data is relevant in the API context but shouldn't be mass-exported (privacy, compliance, or simply irrelevant for reports).
 
+### `@FlashCounter`
+
+Marks an integer field as an auto-maintained counter. Increments when the source entity is created, decrements when deleted. The field is automatically read-only.
+
+```java
+@FlashCounter(source = PostLike.class, relation = "post")
+private int likeCount;
+```
+
+**Attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `source` | Class<?> | Entity class whose creation/deletion drives the counter |
+| `relation` | String | `@ManyToOne` field name on the source entity pointing back to this entity |
+
+See [Counters](counters.md) for full documentation.
+
 ---
 
 ## Field Visibility Matrix
@@ -322,6 +340,7 @@ Useful when some data is relevant in the API context but shouldn't be mass-expor
 | `@FlashWriteOnly` | No | Yes | Yes | No |
 | `@FlashHidden` | No | No | No | No |
 | `@FlashExportExclude` | Yes | Yes | Yes | No |
+| `@FlashCounter` | Yes | No | No | Yes |
 
 ---
 

@@ -2,6 +2,8 @@ package io.github.hackermanme.flashapi.autoconfigure;
 
 import io.github.hackermanme.flashapi.annotation.EnableFlashApi;
 import io.github.hackermanme.flashapi.annotation.FlashSecured;
+import io.github.hackermanme.flashapi.counter.CounterDescriptor;
+import io.github.hackermanme.flashapi.counter.CounterRegistry;
 import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.bulk.BulkHandler;
 import io.github.hackermanme.flashapi.cache.FlashCacheManager;
@@ -201,10 +203,14 @@ public class FlashAutoConfiguration {
 
         validateSecuritySetup(entities);
 
+        List<CounterDescriptor> counterDescriptors = EntityScanner.collectCounterDescriptors(entities);
+        CounterRegistry counterRegistry = new CounterRegistry(counterDescriptors, entityManager);
+
         RequestMappingHandlerMapping handlerMapping = context.getBean(
                 "requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
 
         GenericCrudService crudService = context.getBean(GenericCrudService.class);
+        crudService.setCounterRegistry(counterRegistry);
         ServiceResolver serviceResolver = context.getBean(ServiceResolver.class);
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
         BulkHandler bulkHandler = context.getBean(BulkHandler.class);

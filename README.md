@@ -69,6 +69,7 @@ DELETE /api/products/bulk                — batch delete
 - **Custom services** — implement `FlashCrudOperations<T, ID>` to add business logic
 - **Authorization** — `@FlashSecured` for role-based and owner-based endpoint access control
 - **Auto-inject user** — `currentUserField` auto-sets the authenticated user on CREATE, stripped from body
+- **Declarative counters** — `@FlashCounter` for auto-maintained denormalized counts (likes, comments)
 - **Feature guard** — `@FeatureGuard(max = N)` for record-count limits with dynamic `PlanLimitResolver`
 - **Multi-tenancy** — `@FlashMultiTenant` for automatic data isolation per tenant
 - **Webhooks** — `@FlashWebhook` for real-time event notifications to external systems
@@ -304,6 +305,7 @@ flashapi.websocket.enabled=true
 | [OpenAPI](docs/openapi.md) | Auto-generated Swagger UI & spec |
 | [Security](docs/security.md) | @FlashSecured role-based authorization |
 | [Current User Field](docs/current-user-field.md) | Auto-inject authenticated user into entities |
+| [Counters](docs/counters.md) | Declarative denormalized counters (`@FlashCounter`) |
 | [Multi-Tenancy](docs/multi-tenancy.md) | Automatic data isolation per tenant |
 | [WebSocket](docs/websocket.md) | Real-time CRUD events via raw WebSocket |
 | [Webhooks](docs/webhooks.md) | Event notifications on data changes |

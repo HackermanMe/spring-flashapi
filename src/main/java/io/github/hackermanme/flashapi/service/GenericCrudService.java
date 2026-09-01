@@ -1,6 +1,7 @@
 package io.github.hackermanme.flashapi.service;
 
 import io.github.hackermanme.flashapi.audit.AuditService;
+import io.github.hackermanme.flashapi.counter.CounterRegistry;
 import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.hooks.*;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
@@ -39,6 +40,7 @@ public class GenericCrudService {
     private final HookRegistry hookRegistry;
     private volatile MetricsCollector metricsCollector;
     private volatile FlashEventBroadcaster eventBroadcaster;
+    private volatile CounterRegistry counterRegistry;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
                               SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler,
@@ -57,6 +59,10 @@ public class GenericCrudService {
 
     public void setEventBroadcaster(FlashEventBroadcaster broadcaster) {
         this.eventBroadcaster = broadcaster;
+    }
+
+    public void setCounterRegistry(CounterRegistry counterRegistry) {
+        this.counterRegistry = counterRegistry;
     }
 
     private void broadcastEvent(EntityMetadata meta, String action, Object entity) {
@@ -171,6 +177,7 @@ public class GenericCrudService {
 
         hookRegistry.invokeHooks(FlashAfterCreate.class, instance, request);
 
+        updateCounters(meta, instance, true);
         auditService.logCreate(meta, instance);
         webhookDispatcher.dispatch(meta, "CREATE", instance);
         broadcastEvent(meta, "CREATE", instance);
@@ -230,6 +237,7 @@ public class GenericCrudService {
             boolean deleted = softDeleteHandler.softDelete(meta, realId);
             if (deleted) {
                 hookRegistry.invokeHooks(FlashAfterDelete.class, instance, request);
+                updateCounters(meta, instance, false);
                 webhookDispatcher.dispatch(meta, "DELETE", instance);
                 broadcastEvent(meta, "DELETE", instance);
                 recordMetric(meta.entityName(), "DELETE");
@@ -243,6 +251,7 @@ public class GenericCrudService {
 
         hookRegistry.invokeHooks(FlashAfterDelete.class, instance, request);
 
+        updateCounters(meta, instance, false);
         webhookDispatcher.dispatch(meta, "DELETE", instance);
         broadcastEvent(meta, "DELETE", instance);
         recordMetric(meta.entityName(), "DELETE");
@@ -563,6 +572,16 @@ public class GenericCrudService {
                     "FlashAPI: @FlashWriteOnly(password=true) requires spring-boot-starter-security on the classpath");
         } catch (Exception e) {
             throw new IllegalStateException("FlashAPI: failed to hash password", e);
+        }
+    }
+
+    private void updateCounters(EntityMetadata meta, Object instance, boolean created) {
+        var registry = this.counterRegistry;
+        if (registry == null || !registry.hasCountersFor(meta.entityClass())) return;
+        if (created) {
+            registry.onSourceCreated(meta.entityClass(), instance);
+        } else {
+            registry.onSourceDeleted(meta.entityClass(), instance);
         }
     }
 
