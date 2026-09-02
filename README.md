@@ -69,6 +69,7 @@ DELETE /api/products/bulk                — batch delete
 - **Custom services** — implement `FlashCrudOperations<T, ID>` to add business logic
 - **Authorization** — `@FlashSecured` for role-based and owner-based endpoint access control
 - **Auto-inject user** — `currentUserField` auto-sets the authenticated user on CREATE, stripped from body
+- **Principal resolver** — `FlashPrincipalResolver` for custom identity extraction (works with `ownerField` and `currentUserField`)
 - **Declarative counters** — `@FlashCounter` for auto-maintained denormalized counts (likes, comments)
 - **Feature guard** — `maxRecords` for record-count limits with dynamic `PlanLimitResolver`
 - **Multi-tenancy** — `tenantField` for automatic data isolation per tenant

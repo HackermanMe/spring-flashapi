@@ -160,14 +160,42 @@ For relation fields, FlashAPI extracts the `@Id` of the related entity and compa
 
 Users with `ADMIN` or `MODERATOR` roles can UPDATE/DELETE any entity regardless of ownership.
 
+### Principal Resolution
+
+By default, FlashAPI compares the owner field value with `auth.getName()` (from Spring Security's `Authentication`). This works when `getName()` returns the same value as the entity's owner field (e.g., a username stored as `String ownerId`).
+
+**Problem:** For `@ManyToOne` owner fields, FlashAPI compares `relatedEntity.@Id.toString()` with `auth.getName()`. But `auth.getName()` typically returns a username or email — not a database ID. This causes silent 403 Forbidden responses.
+
+**Solution:** Register a `FlashPrincipalResolver` bean to control how the principal identity is extracted:
+
+```java
+@Component
+public class MyPrincipalResolver implements FlashPrincipalResolver {
+    @Override
+    public Object resolve(Authentication auth) {
+        return ((MyUserDetails) auth.getPrincipal()).getId();
+    }
+}
+```
+
+FlashAPI uses the resolver for both **ownership checks** (`ownerField`) and **current user injection** (`currentUserField`). The returned value is compared directly with the owner field value (type-safe, no `toString()` needed if types match).
+
+If no `FlashPrincipalResolver` bean is registered and an `ownerField` is configured, FlashAPI logs a WARN at startup:
+
+```
+WARN FlashAPI: entity 'Post' has ownerField='author'. Ownership check compares author.@Id.toString() 
+with auth.getName(). If auth.getName() returns a username/email instead of the entity ID, 
+register a FlashPrincipalResolver bean. See docs/security.md
+```
+
 ### Supported Field Types
 
-| Field Type | Comparison |
-|------------|------------|
-| `String` | Direct comparison with `principal.getName()` |
-| `Long` / `Integer` | `toString()` compared with `principal.getName()` |
-| `UUID` | `toString()` compared with `principal.getName()` |
-| `@ManyToOne` relation | Extracts `@Id` from related entity, compares with `principal.getName()` |
+| Field Type | Comparison (without resolver) | Comparison (with resolver) |
+|------------|-------------------------------|---------------------------|
+| `String` | Direct comparison with `auth.getName()` | Direct comparison with `resolver.resolve(auth).toString()` |
+| `Long` / `Integer` | `toString()` vs `auth.getName()` | Type-safe if resolver returns matching type |
+| `UUID` | `toString()` vs `auth.getName()` | Type-safe if resolver returns `UUID` |
+| `@ManyToOne` relation | `relation.@Id.toString()` vs `auth.getName()` | `relation.@Id` vs `resolver.resolve(auth)` |
 
 ### Behavior
 

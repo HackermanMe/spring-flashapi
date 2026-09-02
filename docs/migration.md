@@ -143,6 +143,22 @@ Auto-maintained denormalized counters via `@FlashCounter`:
 private int likeCount;
 ```
 
+#### Principal resolver for ownership and user injection
+
+`ownerField` and `currentUserField` now support a `FlashPrincipalResolver` bean for custom identity extraction. Without it, FlashAPI compares `auth.getName()` with entity field values — which fails silently when `getName()` returns a username but the field expects a numeric ID.
+
+```java
+@Component
+public class MyPrincipalResolver implements FlashPrincipalResolver {
+    @Override
+    public Object resolve(Authentication auth) {
+        return ((MyUserDetails) auth.getPrincipal()).getId();
+    }
+}
+```
+
+No migration needed — existing behavior is preserved. This is additive.
+
 #### Annotation consolidation
 
 `@FlashAudit`, `@FlashMultiTenant`, `@FlashWebhook`, and `@FeatureGuard` are now deprecated. Their functionality is consolidated into `@FlashEntity`:

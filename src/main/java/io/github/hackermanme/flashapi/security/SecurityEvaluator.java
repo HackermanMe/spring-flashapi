@@ -8,14 +8,16 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Set;
 
-/**
- * Evaluates @FlashSecured authorization rules against the current request.
- * Stateless — one instance shared across all entities.
- */
 public class SecurityEvaluator {
 
     private static final String PERMIT_ALL = "permitAll";
     private static final String AUTHENTICATED = "authenticated";
+
+    private volatile FlashPrincipalResolver principalResolver;
+
+    public void setPrincipalResolver(FlashPrincipalResolver resolver) {
+        this.principalResolver = resolver;
+    }
 
     public SecurityResult evaluate(EntityMetadata metadata, CrudOperation operation) {
         FlashSecured secured = metadata.entityClass().getAnnotation(FlashSecured.class);
@@ -77,10 +79,6 @@ public class SecurityEvaluator {
         return new String[]{AUTHENTICATED};
     }
 
-    /**
-     * Checks if the current user owns the given entity.
-     * Called after the entity is loaded, only for UPDATE/DELETE when ownerField is set.
-     */
     public SecurityResult evaluateOwnership(EntityMetadata metadata, Object entity) {
         if (!metadata.hasOwnerField()) {
             return SecurityResult.ALLOWED;
@@ -91,7 +89,6 @@ public class SecurityEvaluator {
             return SecurityResult.UNAUTHENTICATED;
         }
 
-        // Admin bypass
         String[] adminRoles = metadata.ownerAdminRoles();
         if (adminRoles.length > 0) {
             Collection<String> authorities = getCurrentAuthorities();
@@ -102,11 +99,6 @@ public class SecurityEvaluator {
             }
         }
 
-        String principalName = getCurrentPrincipalName();
-        if (principalName == null) {
-            return SecurityResult.FORBIDDEN;
-        }
-
         try {
             Field ownerField = metadata.ownerJavaField();
             Object ownerValue = ownerField.get(entity);
@@ -115,21 +107,17 @@ public class SecurityEvaluator {
                 return SecurityResult.FORBIDDEN;
             }
 
-            String ownerIdentifier;
-            if (metadata.ownerFieldIsRelation()) {
-                // Extract the ID from the related entity (e.g., author.id)
-                Field idField = findIdField(ownerValue.getClass());
-                if (idField == null) {
-                    return SecurityResult.FORBIDDEN;
-                }
-                idField.setAccessible(true);
-                Object ownerId = idField.get(ownerValue);
-                ownerIdentifier = ownerId != null ? ownerId.toString() : null;
-            } else {
-                ownerIdentifier = ownerValue.toString();
+            Object ownerIdentifier = extractOwnerIdentifier(metadata, ownerValue);
+            if (ownerIdentifier == null) {
+                return SecurityResult.FORBIDDEN;
             }
 
-            if (principalName.equals(ownerIdentifier)) {
+            Object principalIdentifier = resolvePrincipalIdentifier();
+            if (principalIdentifier == null) {
+                return SecurityResult.FORBIDDEN;
+            }
+
+            if (identifiersMatch(principalIdentifier, ownerIdentifier)) {
                 return SecurityResult.ALLOWED;
             }
         } catch (IllegalAccessException e) {
@@ -137,6 +125,41 @@ public class SecurityEvaluator {
         }
 
         return SecurityResult.FORBIDDEN;
+    }
+
+    private Object extractOwnerIdentifier(EntityMetadata metadata, Object ownerValue) throws IllegalAccessException {
+        if (metadata.ownerFieldIsRelation()) {
+            Field idField = findIdField(ownerValue.getClass());
+            if (idField == null) {
+                return null;
+            }
+            idField.setAccessible(true);
+            return idField.get(ownerValue);
+        }
+        return ownerValue;
+    }
+
+    protected Object resolvePrincipalIdentifier() {
+        FlashPrincipalResolver resolver = this.principalResolver;
+        if (resolver != null) {
+            return resolvePrincipalViaResolver(resolver);
+        }
+        String name = getCurrentPrincipalName();
+        return name;
+    }
+
+    protected Object resolvePrincipalViaResolver(FlashPrincipalResolver resolver) {
+        return null;
+    }
+
+    private boolean identifiersMatch(Object principal, Object owner) {
+        if (principal == null || owner == null) {
+            return false;
+        }
+        if (principal.equals(owner)) {
+            return true;
+        }
+        return principal.toString().equals(owner.toString());
     }
 
     protected String getCurrentPrincipalName() {

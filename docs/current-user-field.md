@@ -44,11 +44,11 @@ public class Post {
 ```
 
 For relation fields, FlashAPI:
-1. Gets the principal name from `SecurityContext`
+1. Resolves the current user identity (via `FlashPrincipalResolver` if registered, otherwise `auth.getName()`)
 2. Converts it to the target entity's `@Id` type
 3. Uses `entityManager.getReference()` to set the relation (no extra SELECT)
 
-The principal name must match the target entity's `@Id` value (e.g., if `Author.id` is `Long`, the principal name must be a valid `Long`).
+Without a `FlashPrincipalResolver`, the principal name must match the target entity's `@Id` value (e.g., if `Author.id` is `Long`, `auth.getName()` must be a valid `Long`). With a resolver, the returned value is converted to the target type automatically.
 
 Both `authorId` and `author` keys are stripped from the request body.
 
@@ -102,6 +102,26 @@ public class Post {
 - The client never sees or touches the `author` field — fully server-controlled
 
 This pattern gives you secure, declarative resource ownership with zero boilerplate.
+
+---
+
+## FlashPrincipalResolver
+
+By default, `currentUserField` uses `auth.getName()` to identify the current user. This is problematic when `auth.getName()` returns a username/email but the field expects a numeric ID.
+
+Register a `FlashPrincipalResolver` bean to control how the identity is extracted:
+
+```java
+@Component
+public class MyPrincipalResolver implements FlashPrincipalResolver {
+    @Override
+    public Object resolve(Authentication auth) {
+        return ((MyUserDetails) auth.getPrincipal()).getId(); // Returns Long
+    }
+}
+```
+
+This resolver is shared with `ownerField` in `@FlashSecured`. See [Security — Principal Resolution](security.md#principal-resolution) for details.
 
 ---
 

@@ -165,6 +165,8 @@ Resolution priority: specific operation > write/read group > roles > "authentica
 
 Special values: `"permitAll"` (public), `"authenticated"` (any logged-in user).
 
+> **Tip:** If `auth.getName()` returns a username/email but your `ownerField` is a `@ManyToOne` with a numeric `@Id`, register a `FlashPrincipalResolver` bean. See [Security — Principal Resolution](security.md#principal-resolution).
+
 See [Security](security.md) for full details and examples.
 
 ### `@EnableFlashApi`

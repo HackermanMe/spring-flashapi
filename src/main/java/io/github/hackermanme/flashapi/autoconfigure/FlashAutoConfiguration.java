@@ -24,6 +24,7 @@ import io.github.hackermanme.flashapi.ratelimit.FlashRateLimiter;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.EntityScanner;
 import io.github.hackermanme.flashapi.relation.RelationExpander;
+import io.github.hackermanme.flashapi.security.FlashPrincipalResolver;
 import io.github.hackermanme.flashapi.security.SecurityEvaluator;
 import io.github.hackermanme.flashapi.service.GenericCrudService;
 import io.github.hackermanme.flashapi.service.ServiceResolver;
@@ -202,6 +203,7 @@ public class FlashAutoConfiguration {
         }
 
         validateSecuritySetup(entities);
+        wirePrincipalResolver(entities);
 
         List<CounterDescriptor> counterDescriptors = EntityScanner.collectCounterDescriptors(entities);
         CounterRegistry counterRegistry = new CounterRegistry(counterDescriptors, entityManager);
@@ -211,6 +213,11 @@ public class FlashAutoConfiguration {
 
         GenericCrudService crudService = context.getBean(GenericCrudService.class);
         crudService.setCounterRegistry(counterRegistry);
+        try {
+            FlashPrincipalResolver resolver = context.getBean(FlashPrincipalResolver.class);
+            crudService.setPrincipalResolver(resolver);
+        } catch (Exception ignored) {
+        }
         ServiceResolver serviceResolver = context.getBean(ServiceResolver.class);
         ExportHandler exportHandler = context.getBean(ExportHandler.class);
         BulkHandler bulkHandler = context.getBean(BulkHandler.class);
@@ -273,6 +280,37 @@ public class FlashAutoConfiguration {
                 "        // ... your other rules\n" +
                 "    );",
                 basePath, docsPath, basePath, docsPath);
+    }
+
+    private void wirePrincipalResolver(List<EntityMetadata> entities) {
+        SecurityEvaluator securityEvaluator = context.getBean(SecurityEvaluator.class);
+
+        FlashPrincipalResolver resolver = null;
+        try {
+            resolver = context.getBean(FlashPrincipalResolver.class);
+        } catch (Exception ignored) {
+        }
+
+        if (resolver != null) {
+            securityEvaluator.setPrincipalResolver(resolver);
+            log.info("FlashAPI: custom FlashPrincipalResolver detected — ownership checks will use it");
+        } else {
+            boolean anyOwnerField = entities.stream().anyMatch(EntityMetadata::hasOwnerField);
+            if (anyOwnerField) {
+                entities.stream()
+                        .filter(EntityMetadata::hasOwnerField)
+                        .forEach(meta -> {
+                            String comparison = meta.ownerFieldIsRelation()
+                                    ? meta.ownerFieldName() + ".@Id.toString()"
+                                    : meta.ownerFieldName() + ".toString()";
+                            log.warn("FlashAPI: entity '{}' has ownerField='{}'. " +
+                                    "Ownership check compares {} with auth.getName(). " +
+                                    "If auth.getName() returns a username/email instead of the entity ID, " +
+                                    "register a FlashPrincipalResolver bean. See docs/security.md",
+                                    meta.entityName(), meta.ownerFieldName(), comparison);
+                        });
+            }
+        }
     }
 
     private void validateSecuritySetup(List<EntityMetadata> entities) {

@@ -4,6 +4,7 @@ import io.github.hackermanme.flashapi.audit.AuditService;
 import io.github.hackermanme.flashapi.counter.CounterRegistry;
 import io.github.hackermanme.flashapi.dashboard.MetricsCollector;
 import io.github.hackermanme.flashapi.hooks.*;
+import io.github.hackermanme.flashapi.security.FlashPrincipalResolver;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 import io.github.hackermanme.flashapi.registry.FieldMetadata;
 import io.github.hackermanme.flashapi.softdelete.SoftDeleteHandler;
@@ -41,6 +42,7 @@ public class GenericCrudService {
     private volatile MetricsCollector metricsCollector;
     private volatile FlashEventBroadcaster eventBroadcaster;
     private volatile CounterRegistry counterRegistry;
+    private volatile FlashPrincipalResolver principalResolver;
 
     public GenericCrudService(EntityManager entityManager, AuditService auditService,
                               SoftDeleteHandler softDeleteHandler, TenantHandler tenantHandler,
@@ -63,6 +65,10 @@ public class GenericCrudService {
 
     public void setCounterRegistry(CounterRegistry counterRegistry) {
         this.counterRegistry = counterRegistry;
+    }
+
+    public void setPrincipalResolver(FlashPrincipalResolver resolver) {
+        this.principalResolver = resolver;
     }
 
     private void broadcastEvent(EntityMetadata meta, String action, Object entity) {
@@ -595,17 +601,18 @@ public class GenericCrudService {
 
     private void injectCurrentUser(EntityMetadata meta, Object instance) {
         if (!meta.hasCurrentUserField()) return;
-        String currentUser = resolveCurrentUser();
-        if (currentUser == null) return;
+
+        Object resolvedId = resolveCurrentUserIdentifier();
+        if (resolvedId == null) return;
 
         try {
             if (meta.currentUserFieldIsRelation()) {
-                Object convertedId = convertPrincipalToIdType(currentUser, meta.currentUserTargetIdType());
+                Object convertedId = convertToTargetType(resolvedId, meta.currentUserTargetIdType());
                 Object reference = entityManager.getReference(meta.currentUserTargetEntity(), convertedId);
                 meta.currentUserJavaField().set(instance, reference);
             } else {
                 Class<?> fieldType = meta.currentUserJavaField().getType();
-                Object convertedValue = convertPrincipalToIdType(currentUser, fieldType);
+                Object convertedValue = convertToTargetType(resolvedId, fieldType);
                 meta.currentUserJavaField().set(instance, convertedValue);
             }
         } catch (IllegalAccessException e) {
@@ -613,12 +620,34 @@ public class GenericCrudService {
         }
     }
 
-    private Object convertPrincipalToIdType(String principalName, Class<?> targetType) {
-        if (targetType == String.class) return principalName;
-        if (targetType == Long.class || targetType == long.class) return Long.parseLong(principalName);
-        if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(principalName);
-        if (targetType == java.util.UUID.class) return java.util.UUID.fromString(principalName);
-        return principalName;
+    private Object resolveCurrentUserIdentifier() {
+        FlashPrincipalResolver resolver = this.principalResolver;
+        if (resolver != null) {
+            try {
+                Class<?> holderClass = Class.forName("org.springframework.security.core.context.SecurityContextHolder");
+                Object ctx = holderClass.getMethod("getContext").invoke(null);
+                Object auth = ctx.getClass().getMethod("getAuthentication").invoke(ctx);
+                if (auth == null) return null;
+                boolean authenticated = (boolean) auth.getClass().getMethod("isAuthenticated").invoke(auth);
+                if (!authenticated) return null;
+                return resolver.resolve((org.springframework.security.core.Authentication) auth);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        String name = resolveCurrentUser();
+        return name;
+    }
+
+    private Object convertToTargetType(Object value, Class<?> targetType) {
+        if (value == null) return null;
+        if (targetType.isInstance(value)) return value;
+        String str = value.toString();
+        if (targetType == String.class) return str;
+        if (targetType == Long.class || targetType == long.class) return Long.parseLong(str);
+        if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(str);
+        if (targetType == java.util.UUID.class) return java.util.UUID.fromString(str);
+        return value;
     }
 
     private void fillAuditFields(Object instance, boolean isCreate) {

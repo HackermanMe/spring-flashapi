@@ -35,6 +35,18 @@ public class SpringSecurityEvaluator extends SecurityEvaluator {
     }
 
     @Override
+    protected Object resolvePrincipalViaResolver(FlashPrincipalResolver resolver) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+        if (auth instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+        return resolver.resolve(auth);
+    }
+
+    @Override
     protected Collection<String> getCurrentAuthorities() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) {
