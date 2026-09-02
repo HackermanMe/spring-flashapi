@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/HackermanMe/spring-flashapi/compare/v3.0.1...v3.1.0) (2026-09-02)
+
+
+### Features
+
+* add FlashPrincipalResolver for type-safe ownership and user injection (Closes [#23](https://github.com/HackermanMe/spring-flashapi/issues/23)) ([934b1f6](https://github.com/HackermanMe/spring-flashapi/commit/934b1f60d01ceb908cbce3ee7b4715667b209f75))
+
 ## [3.0.1](https://github.com/HackermanMe/spring-flashapi/compare/v3.0.0...v3.0.1) (2026-09-01)
 
 
