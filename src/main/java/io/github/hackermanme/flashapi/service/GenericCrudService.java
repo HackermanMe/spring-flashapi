@@ -14,6 +14,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.domain.Page;
@@ -32,6 +34,8 @@ import java.util.*;
  * No reflection at query time — field metadata is pre-computed.
  */
 public class GenericCrudService {
+
+    private static final Logger log = LoggerFactory.getLogger(GenericCrudService.class);
 
     private final EntityManager entityManager;
     private final AuditService auditService;
@@ -603,7 +607,12 @@ public class GenericCrudService {
         if (!meta.hasCurrentUserField()) return;
 
         Object resolvedId = resolveCurrentUserIdentifier();
-        if (resolvedId == null) return;
+        if (resolvedId == null) {
+            log.warn("FlashAPI: could not resolve current user for field '{}' on entity '{}'. " +
+                    "The field will be null. If using a FlashPrincipalResolver, verify it returns a non-null value.",
+                    meta.currentUserFieldName(), meta.entityName());
+            return;
+        }
 
         try {
             if (meta.currentUserFieldIsRelation()) {
@@ -615,8 +624,14 @@ public class GenericCrudService {
                 Object convertedValue = convertToTargetType(resolvedId, fieldType);
                 meta.currentUserJavaField().set(instance, convertedValue);
             }
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Cannot inject current user into " + meta.currentUserFieldName(), e);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "FlashAPI: failed to inject current user (resolved='" + resolvedId + "', type=" +
+                    resolvedId.getClass().getSimpleName() + ") into field '" + meta.currentUserFieldName() +
+                    "' on entity '" + meta.entityName() + "'. " +
+                    "Check that the resolved value matches the target field type (" +
+                    (meta.currentUserFieldIsRelation() ? meta.currentUserTargetIdType().getSimpleName() : meta.currentUserJavaField().getType().getSimpleName()) +
+                    ").", e);
         }
     }
 
@@ -632,11 +647,11 @@ public class GenericCrudService {
                 if (!authenticated) return null;
                 return resolver.resolve((org.springframework.security.core.Authentication) auth);
             } catch (Exception e) {
+                log.warn("FlashAPI: FlashPrincipalResolver failed to resolve current user identity: {}", e.getMessage(), e);
                 return null;
             }
         }
-        String name = resolveCurrentUser();
-        return name;
+        return resolveCurrentUser();
     }
 
     private Object convertToTargetType(Object value, Class<?> targetType) {
