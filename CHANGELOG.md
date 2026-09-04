@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.1](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.0...v3.1.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* auto-configure HookRegistry bean instead of relying on component scan ([3eb5d46](https://github.com/HackermanMe/spring-flashapi/commit/3eb5d4647d8bfe97b904279db37c106bca48afb4))
+* improve error handling for currentUserField injection and add write-protection tests ([ce52717](https://github.com/HackermanMe/spring-flashapi/commit/ce52717edf2f93c1016e24d340e8a68501f25ee7))
+
 ## [3.1.0](https://github.com/HackermanMe/spring-flashapi/compare/v3.0.1...v3.1.0) (2026-09-02)
 
 
