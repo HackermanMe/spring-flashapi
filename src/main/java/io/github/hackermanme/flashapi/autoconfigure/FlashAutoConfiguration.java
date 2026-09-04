@@ -105,6 +105,12 @@ public class FlashAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public HookRegistry flashHookRegistry() {
+        return new HookRegistry(context);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public GenericCrudService flashCrudService(AuditService auditService, SoftDeleteHandler softDeleteHandler,
                                               TenantHandler tenantHandler, WebhookDispatcher webhookDispatcher,
                                               HookRegistry hookRegistry) {

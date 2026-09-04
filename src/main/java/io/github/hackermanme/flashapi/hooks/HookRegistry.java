@@ -21,7 +21,6 @@ import java.util.Map;
  * Registry that scans Spring beans for lifecycle hook methods.
  * Hooks are loaded once at startup and indexed by type for fast lookup.
  */
-@Component
 public class HookRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(HookRegistry.class);
