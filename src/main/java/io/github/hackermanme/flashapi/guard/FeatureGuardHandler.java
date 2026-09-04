@@ -47,7 +47,7 @@ public class FeatureGuardHandler {
     private long countRecords(EntityMetadata meta) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        query.select(cb.count(query.from(meta.entityClass())));
+        query.select(cb.count(query.from(meta.resolvedEntityClass())));
         return entityManager.createQuery(query).getSingleResult();
     }
 }

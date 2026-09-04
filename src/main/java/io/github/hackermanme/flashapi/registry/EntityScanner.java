@@ -45,7 +45,8 @@ public final class EntityScanner {
             Set<BeanDefinition> candidates = scanner.findCandidateComponents(pkg);
             for (BeanDefinition bd : candidates) {
                 try {
-                    Class<?> clazz = Class.forName(bd.getBeanClassName());
+                    Class<?> clazz = Class.forName(bd.getBeanClassName(), true,
+                            Thread.currentThread().getContextClassLoader());
                     results.add(buildMetadata(clazz));
                     log.info("FlashAPI: registered {} → /{}", clazz.getSimpleName(),
                             clazz.getAnnotation(FlashEntity.class).path().isEmpty()

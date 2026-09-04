@@ -43,7 +43,7 @@ public final class TenantHandler {
         if (currentTenant == null) return true;
 
         try {
-            Field field = meta.entityClass().getDeclaredField(tenantField);
+            Field field = meta.resolvedEntityClass().getDeclaredField(tenantField);
             field.setAccessible(true);
             Object entityTenant = field.get(entity);
             return currentTenant.equals(entityTenant);

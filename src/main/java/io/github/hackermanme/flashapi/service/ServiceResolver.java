@@ -59,7 +59,7 @@ public final class ServiceResolver {
                     ann = superclass.getAnnotation(FlashService.class);
                 }
             }
-            if (ann != null && ann.value() == entityClass && bean instanceof FlashCrudOperations<?, ?> ops) {
+            if (ann != null && ann.value().getName().equals(entityClass.getName()) && bean instanceof FlashCrudOperations<?, ?> ops) {
                 return ops;
             }
         }

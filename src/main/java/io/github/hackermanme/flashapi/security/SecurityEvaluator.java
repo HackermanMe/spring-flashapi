@@ -20,7 +20,7 @@ public class SecurityEvaluator {
     }
 
     public SecurityResult evaluate(EntityMetadata metadata, CrudOperation operation) {
-        FlashSecured secured = metadata.entityClass().getAnnotation(FlashSecured.class);
+        FlashSecured secured = metadata.resolvedEntityClass().getAnnotation(FlashSecured.class);
         if (secured == null) {
             return SecurityResult.ALLOWED;
         }

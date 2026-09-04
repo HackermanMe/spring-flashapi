@@ -73,4 +73,23 @@ public record EntityMetadata(
     public boolean hasCurrentUserField() {
         return currentUserFieldName != null && !currentUserFieldName.isEmpty();
     }
+
+    /**
+     * Returns the entity class resolved through the current thread's context ClassLoader.
+     * Necessary for Spring Boot DevTools compatibility: after a restart, the Restart ClassLoader
+     * creates new Class instances, making stored references stale for JPA/Hibernate operations.
+     */
+    public Class<?> resolvedEntityClass() {
+        return resolveClass(entityClass);
+    }
+
+    public static Class<?> resolveClass(Class<?> clazz) {
+        ClassLoader contextCL = Thread.currentThread().getContextClassLoader();
+        if (contextCL == null || clazz.getClassLoader() == contextCL) return clazz;
+        try {
+            return Class.forName(clazz.getName(), true, contextCL);
+        } catch (ClassNotFoundException e) {
+            return clazz;
+        }
+    }
 }

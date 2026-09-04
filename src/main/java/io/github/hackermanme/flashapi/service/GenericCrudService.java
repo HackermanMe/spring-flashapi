@@ -111,7 +111,7 @@ public class GenericCrudService {
 
         // Count
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
-        Root<?> countRoot = countQuery.from(meta.entityClass());
+        Root<?> countRoot = countQuery.from(meta.resolvedEntityClass());
         countQuery.select(cb.count(countRoot));
         List<Predicate> countPreds = buildPredicates(cb, countRoot, meta, filters, showDeleted, searchTerm);
         if (!countPreds.isEmpty()) countQuery.where(countPreds.toArray(Predicate[]::new));
@@ -119,7 +119,7 @@ public class GenericCrudService {
 
         // Data
         CriteriaQuery<Object> dataQuery = cb.createQuery(Object.class);
-        Root<?> root = dataQuery.from(meta.entityClass());
+        Root<?> root = dataQuery.from(meta.resolvedEntityClass());
         dataQuery.select(root);
         List<Predicate> preds = buildPredicates(cb, root, meta, filters, showDeleted, searchTerm);
         if (!preds.isEmpty()) dataQuery.where(preds.toArray(Predicate[]::new));
@@ -146,7 +146,7 @@ public class GenericCrudService {
         if (meta.hasCustomLookupField()) {
             return findByLookupField(meta, id);
         }
-        Object entity = entityManager.find(meta.entityClass(), id);
+        Object entity = entityManager.find(meta.resolvedEntityClass(), id);
         if (entity != null && !tenantHandler.belongsToCurrentTenant(meta, entity)) {
             return Optional.empty();
         }
@@ -157,7 +157,7 @@ public class GenericCrudService {
     public Optional<Object> findByLookupField(EntityMetadata meta, Object lookupValue) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object> query = cb.createQuery(Object.class);
-        Root<?> root = query.from(meta.entityClass());
+        Root<?> root = query.from(meta.resolvedEntityClass());
         query.select(root);
         query.where(cb.equal(root.get(meta.lookupFieldName()), lookupValue));
         List<Object> results = entityManager.createQuery(query).setMaxResults(1).getResultList();
@@ -199,7 +199,7 @@ public class GenericCrudService {
     public Optional<Object> update(EntityMetadata meta, Object id, Map<String, Object> data) {
         Object instance = meta.hasCustomLookupField()
                 ? findByLookupField(meta, id).orElse(null)
-                : entityManager.find(meta.entityClass(), id);
+                : entityManager.find(meta.resolvedEntityClass(), id);
         if (instance == null) return Optional.empty();
         if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return Optional.empty();
 
@@ -235,7 +235,7 @@ public class GenericCrudService {
     public boolean delete(EntityMetadata meta, Object id) {
         Object instance = meta.hasCustomLookupField()
                 ? findByLookupField(meta, id).orElse(null)
-                : entityManager.find(meta.entityClass(), id);
+                : entityManager.find(meta.resolvedEntityClass(), id);
         if (instance == null) return false;
         if (!tenantHandler.belongsToCurrentTenant(meta, instance)) return false;
 
@@ -278,7 +278,7 @@ public class GenericCrudService {
             if (instance == null) return false;
             realId = extractPrimaryKey(meta, instance);
         } else {
-            instance = entityManager.find(meta.entityClass(), id);
+            instance = entityManager.find(meta.resolvedEntityClass(), id);
             if (instance == null) return false;
             realId = id;
         }
@@ -449,7 +449,7 @@ public class GenericCrudService {
 
     private Object instantiate(EntityMetadata meta) {
         try {
-            return meta.entityClass().getDeclaredConstructor().newInstance();
+            return meta.resolvedEntityClass().getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new IllegalStateException(
                     meta.entityName() + " must have a public no-arg constructor", e);
@@ -486,7 +486,7 @@ public class GenericCrudService {
             } else {
                 // Resolve FK ID to managed entity reference
                 Object convertedId = coerce(idValue, descriptor.targetIdType());
-                Object reference = entityManager.getReference(descriptor.targetEntity(), convertedId);
+                Object reference = entityManager.getReference(EntityMetadata.resolveClass(descriptor.targetEntity()), convertedId);
                 try {
                     descriptor.relationField().set(instance, reference);
                 } catch (IllegalAccessException e) {
@@ -617,7 +617,7 @@ public class GenericCrudService {
         try {
             if (meta.currentUserFieldIsRelation()) {
                 Object convertedId = convertToTargetType(resolvedId, meta.currentUserTargetIdType());
-                Object reference = entityManager.getReference(meta.currentUserTargetEntity(), convertedId);
+                Object reference = entityManager.getReference(EntityMetadata.resolveClass(meta.currentUserTargetEntity()), convertedId);
                 meta.currentUserJavaField().set(instance, reference);
             } else {
                 Class<?> fieldType = meta.currentUserJavaField().getType();

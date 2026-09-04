@@ -25,11 +25,11 @@ public class SoftDeleteHandler {
 
     @Transactional
     public boolean softDelete(EntityMetadata meta, Object id) {
-        Object entity = entityManager.find(meta.entityClass(), id);
+        Object entity = entityManager.find(meta.resolvedEntityClass(), id);
         if (entity == null) return false;
 
         try {
-            var field = findField(meta.entityClass(), deletedAtColumn);
+            var field = findField(meta.resolvedEntityClass(), deletedAtColumn);
             field.setAccessible(true);
             Object timestamp = field.getType() == LocalDateTime.class
                     ? LocalDateTime.now() : Instant.now();
@@ -48,11 +48,11 @@ public class SoftDeleteHandler {
 
     @Transactional
     public boolean restore(EntityMetadata meta, Object id) {
-        Object entity = entityManager.find(meta.entityClass(), id);
+        Object entity = entityManager.find(meta.resolvedEntityClass(), id);
         if (entity == null) return false;
 
         try {
-            var field = findField(meta.entityClass(), deletedAtColumn);
+            var field = findField(meta.resolvedEntityClass(), deletedAtColumn);
             field.setAccessible(true);
             field.set(entity, null);
             entityManager.merge(entity);
