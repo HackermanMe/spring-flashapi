@@ -36,6 +36,7 @@ import io.github.hackermanme.flashapi.webhook.WebhookDispatcher;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
@@ -55,6 +56,7 @@ import java.util.Set;
 
 @Configuration
 @EnableConfigurationProperties(FlashProperties.class)
+@AutoConfigurationPackage(basePackages = "io.github.hackermanme.flashapi.audit")
 public class FlashAutoConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(FlashAutoConfiguration.class);
