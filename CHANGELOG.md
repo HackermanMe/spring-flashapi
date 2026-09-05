@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.3](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.2...v3.1.3) (2026-09-05)
+
+
+### Bug Fixes
+
+* auto-register AuditEntry entity for Hibernate scanning ([779aa15](https://github.com/HackermanMe/spring-flashapi/commit/779aa151d99005ed00aaa0f62b6e77c54c794bb1))
+* ownership, currentUserField, softDelete and cache resilience ([ebe6373](https://github.com/HackermanMe/spring-flashapi/commit/ebe6373b8ac0ee096495178139631fd924efdf7d))
+
 ## [3.1.2](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.1...v3.1.2) (2026-09-05)
 
 
