@@ -75,6 +75,16 @@ public class SoftDeleteHandler {
         throw new NoSuchFieldException(fieldName);
     }
 
+    public boolean isDeleted(EntityMetadata meta, Object entity) {
+        try {
+            var field = findField(meta.resolvedEntityClass(), deletedAtColumn);
+            field.setAccessible(true);
+            return field.get(entity) != null;
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            return false;
+        }
+    }
+
     /**
      * Adds a WHERE deletedAt IS NULL predicate to exclude soft-deleted entities.
      */

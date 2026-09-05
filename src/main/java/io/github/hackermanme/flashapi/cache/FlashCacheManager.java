@@ -19,34 +19,51 @@ public final class FlashCacheManager {
 
     public Object getFromCache(EntityMetadata meta, String key) {
         if (!meta.cacheEnabled() || cacheManager == null) return null;
-        Cache cache = cacheManager.getCache(cacheName(meta));
-        if (cache == null) return null;
-        Cache.ValueWrapper wrapper = cache.get(key);
-        return wrapper != null ? wrapper.get() : null;
+        try {
+            Cache cache = cacheManager.getCache(cacheName(meta));
+            if (cache == null) return null;
+            Cache.ValueWrapper wrapper = cache.get(key);
+            return wrapper != null ? wrapper.get() : null;
+        } catch (Exception e) {
+            log.warn("FlashAPI: cache read failed for {}, bypassing: {}", meta.entityName(), e.getMessage());
+            return null;
+        }
     }
 
     public void putInCache(EntityMetadata meta, String key, Object value) {
         if (!meta.cacheEnabled() || cacheManager == null) return;
-        Cache cache = cacheManager.getCache(cacheName(meta));
-        if (cache != null) {
-            cache.put(key, value);
+        try {
+            Cache cache = cacheManager.getCache(cacheName(meta));
+            if (cache != null) {
+                cache.put(key, value);
+            }
+        } catch (Exception e) {
+            log.warn("FlashAPI: cache write failed for {}, bypassing: {}", meta.entityName(), e.getMessage());
         }
     }
 
     public void evict(EntityMetadata meta) {
         if (!meta.cacheEnabled() || cacheManager == null) return;
-        Cache cache = cacheManager.getCache(cacheName(meta));
-        if (cache != null) {
-            cache.clear();
-            log.debug("FlashAPI: cache evicted for {}", meta.entityName());
+        try {
+            Cache cache = cacheManager.getCache(cacheName(meta));
+            if (cache != null) {
+                cache.clear();
+                log.debug("FlashAPI: cache evicted for {}", meta.entityName());
+            }
+        } catch (Exception e) {
+            log.warn("FlashAPI: cache eviction failed for {}, bypassing: {}", meta.entityName(), e.getMessage());
         }
     }
 
     public void evictEntry(EntityMetadata meta, String key) {
         if (!meta.cacheEnabled() || cacheManager == null) return;
-        Cache cache = cacheManager.getCache(cacheName(meta));
-        if (cache != null) {
-            cache.evict(key);
+        try {
+            Cache cache = cacheManager.getCache(cacheName(meta));
+            if (cache != null) {
+                cache.evict(key);
+            }
+        } catch (Exception e) {
+            log.warn("FlashAPI: cache eviction failed for {}/{}, bypassing: {}", meta.entityName(), key, e.getMessage());
         }
     }
 

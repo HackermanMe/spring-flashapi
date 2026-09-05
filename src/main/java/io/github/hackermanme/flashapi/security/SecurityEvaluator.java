@@ -5,7 +5,9 @@ import io.github.hackermanme.flashapi.registry.CrudOperation;
 import io.github.hackermanme.flashapi.registry.EntityMetadata;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 public class SecurityEvaluator {
@@ -41,7 +43,7 @@ public class SecurityEvaluator {
         }
 
         Collection<String> userAuthorities = getCurrentAuthorities();
-        for (String role : requiredRoles) {
+        for (String role : normalizeRoles(requiredRoles)) {
             if (userAuthorities.contains(role) || userAuthorities.contains("ROLE_" + role)) {
                 return SecurityResult.ALLOWED;
             }
@@ -144,8 +146,17 @@ public class SecurityEvaluator {
         if (resolver != null) {
             return resolvePrincipalViaResolver(resolver);
         }
-        String name = getCurrentPrincipalName();
-        return name;
+        Object principal = getCurrentPrincipal();
+        if (principal != null) {
+            Field idField = findIdField(principal.getClass());
+            if (idField != null) {
+                try {
+                    idField.setAccessible(true);
+                    return idField.get(principal);
+                } catch (IllegalAccessException ignored) {}
+            }
+        }
+        return getCurrentPrincipalName();
     }
 
     protected Object resolvePrincipalViaResolver(FlashPrincipalResolver resolver) {
@@ -173,6 +184,25 @@ public class SecurityEvaluator {
 
     protected Collection<String> getCurrentAuthorities() {
         return Set.of();
+    }
+
+    private static String[] normalizeRoles(String[] roles) {
+        List<String> normalized = null;
+        for (int i = 0; i < roles.length; i++) {
+            if (roles[i].contains(",")) {
+                if (normalized == null) {
+                    normalized = new ArrayList<>();
+                    for (int j = 0; j < i; j++) normalized.add(roles[j]);
+                }
+                for (String part : roles[i].split(",")) {
+                    String trimmed = part.trim();
+                    if (!trimmed.isEmpty()) normalized.add(trimmed);
+                }
+            } else if (normalized != null) {
+                normalized.add(roles[i]);
+            }
+        }
+        return normalized != null ? normalized.toArray(String[]::new) : roles;
     }
 
     private static Field findIdField(Class<?> clazz) {

@@ -147,10 +147,10 @@ public class GenericCrudService {
             return findByLookupField(meta, id);
         }
         Object entity = entityManager.find(meta.resolvedEntityClass(), id);
-        if (entity != null && !tenantHandler.belongsToCurrentTenant(meta, entity)) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(entity);
+        if (entity == null) return Optional.empty();
+        if (!tenantHandler.belongsToCurrentTenant(meta, entity)) return Optional.empty();
+        if (meta.softDelete() && softDeleteHandler.isDeleted(meta, entity)) return Optional.empty();
+        return Optional.of(entity);
     }
 
     @Transactional(readOnly = true)
@@ -159,7 +159,14 @@ public class GenericCrudService {
         CriteriaQuery<Object> query = cb.createQuery(Object.class);
         Root<?> root = query.from(meta.resolvedEntityClass());
         query.select(root);
-        query.where(cb.equal(root.get(meta.lookupFieldName()), lookupValue));
+
+        List<Predicate> preds = new ArrayList<>();
+        preds.add(cb.equal(root.get(meta.lookupFieldName()), lookupValue));
+        if (meta.softDelete()) {
+            preds.add(softDeleteHandler.notDeleted(cb, root));
+        }
+        query.where(preds.toArray(Predicate[]::new));
+
         List<Object> results = entityManager.createQuery(query).setMaxResults(1).getResultList();
         if (results.isEmpty()) return Optional.empty();
         Object entity = results.get(0);
@@ -637,21 +644,47 @@ public class GenericCrudService {
 
     private Object resolveCurrentUserIdentifier() {
         FlashPrincipalResolver resolver = this.principalResolver;
-        if (resolver != null) {
-            try {
-                Class<?> holderClass = Class.forName("org.springframework.security.core.context.SecurityContextHolder");
-                Object ctx = holderClass.getMethod("getContext").invoke(null);
-                Object auth = ctx.getClass().getMethod("getAuthentication").invoke(ctx);
-                if (auth == null) return null;
-                boolean authenticated = (boolean) auth.getClass().getMethod("isAuthenticated").invoke(auth);
-                if (!authenticated) return null;
+        try {
+            Class<?> holderClass = Class.forName("org.springframework.security.core.context.SecurityContextHolder");
+            Object ctx = holderClass.getMethod("getContext").invoke(null);
+            Object auth = ctx.getClass().getMethod("getAuthentication").invoke(ctx);
+            if (auth == null) return null;
+            boolean authenticated = (boolean) auth.getClass().getMethod("isAuthenticated").invoke(auth);
+            if (!authenticated) return null;
+
+            if (resolver != null) {
                 return resolver.resolve((org.springframework.security.core.Authentication) auth);
-            } catch (Exception e) {
-                log.warn("FlashAPI: FlashPrincipalResolver failed to resolve current user identity: {}", e.getMessage(), e);
-                return null;
             }
+
+            Object principal = auth.getClass().getMethod("getPrincipal").invoke(auth);
+            if (principal == null || "anonymousUser".equals(principal.toString())) return null;
+
+            Field idField = findPrincipalIdField(principal.getClass());
+            if (idField != null) {
+                idField.setAccessible(true);
+                return idField.get(principal);
+            }
+
+            return auth.getClass().getMethod("getName").invoke(auth);
+        } catch (ClassNotFoundException e) {
+            return null;
+        } catch (Exception e) {
+            log.warn("FlashAPI: failed to resolve current user identity: {}", e.getMessage(), e);
+            return null;
         }
-        return resolveCurrentUser();
+    }
+
+    private static Field findPrincipalIdField(Class<?> clazz) {
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            for (Field f : current.getDeclaredFields()) {
+                if (f.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                    return f;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
     }
 
     private Object convertToTargetType(Object value, Class<?> targetType) {
