@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.2](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.1...v3.1.2) (2026-09-05)
+
+
+### Bug Fixes
+
+* resolve ClassLoader mismatch with Spring Boot DevTools ([39d74e7](https://github.com/HackermanMe/spring-flashapi/commit/39d74e787de16b9af6e409efc51c8644843ad754))
+
 ## [3.1.1](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.0...v3.1.1) (2026-09-04)
 
 
