@@ -81,7 +81,7 @@ public @interface FlashEntity {
     int rateLimitWindow() default 60;
 
     /** Enable audit logging for this entity. Replaces @FlashAudit. */
-    boolean audit() default false;
+    boolean audit() default true;
 
     /** Log individual field changes (old → new). Only used if audit=true. */
     boolean trackFields() default false;

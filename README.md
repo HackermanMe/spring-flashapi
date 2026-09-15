@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Zero-config REST APIs from your JPA entities.</strong><br>
-  Annotate. Run. Done.
+  <strong>The REST API framework built for production SaaS.</strong><br>
+  Multi-tenant • Audit Trail • Exports • Real-time • Owner Security
 </p>
 
 <p align="center">
@@ -16,36 +16,149 @@
 
 ---
 
-## What is Spring FlashAPI?
+## Stop re-implementing the same features on every project
 
-Spring FlashAPI is a Spring Boot starter that **auto-generates a full REST API** from your JPA entities. No repositories, no services, no controllers — unless you want them.
+Every production REST API needs:
+- ✅ **Multi-tenancy** — automatic data isolation per customer
+- ✅ **Complete audit trail** — who changed what, when, with full history
+- ✅ **Export to Excel/PDF** — business users demand it
+- ✅ **Real-time updates** — WebSocket events on data changes
+- ✅ **Owner-based security** — users can only modify their own resources
+- ✅ **Rate limiting** — protect your API from abuse
+- ✅ **Soft delete** — never lose data, always recoverable
+
+**FlashAPI gives you all of this out of the box** — no custom code, just annotations.
+
+---
+
+## A production-ready API in 3 annotations
 
 ```java
 @Entity
-@FlashEntity
-public class Product {
+@FlashEntity(audit = true)
+@FlashSecured(ownerField = "author", ownerAdminRoles = "ADMIN")
+@FlashMultiTenant(field = "tenantId")
+public class Invoice {
     @Id @GeneratedValue
     private Long id;
-    private String name;
-    private BigDecimal price;
+    
+    @ManyToOne
+    private User author;  // Owner-based security
+    
+    private String tenantId;  // Multi-tenant isolation
+    
+    private BigDecimal amount;
+    private String status;
 }
 ```
 
-That's it. You now have:
-
-```
-GET    /api/products                     — paginated list with filtering & sorting
-GET    /api/products/{id}                — single resource
-POST   /api/products                     — create
-PUT    /api/products/{id}                — update
-DELETE /api/products/{id}                — delete (or soft-delete)
-GET    /api/products/export?format=csv   — export (csv, xlsx, pdf)
-POST   /api/products/bulk                — batch create
-PUT    /api/products/bulk                — batch update
-DELETE /api/products/bulk                — batch delete
+**You instantly get:**
+```bash
+POST   /api/invoices              # Auto-inject author + tenant
+GET    /api/invoices              # Filtered by tenant, only see your own
+GET    /api/invoices/{id}         # 403 if not owner (unless ADMIN)
+PUT    /api/invoices/{id}         # Owner or ADMIN only
+DELETE /api/invoices/{id}         # Soft delete with restore
+GET    /api/invoices/{id}/history # Complete audit trail
+GET    /api/invoices/export?format=pdf  # Instant PDF export
 ```
 
-## Features
+**WebSocket real-time:**
+```javascript
+ws://localhost:8080/api/ws
+→ { type: "ENTITY_CREATED", entity: "Invoice", data: {...} }
+```
+
+---
+
+## Why FlashAPI?
+
+### The hidden cost of "just write it yourself"
+
+When you start a new Spring Boot project, you write:
+1. **Repositories** → boilerplate
+2. **Services** → boilerplate + business logic
+3. **Controllers** → boilerplate + request/response mapping
+4. **DTOs** → endless mapping code
+5. **Pagination** → reinvent the wheel
+6. **Filtering** → parse query params manually
+7. **Exports** → POI/Jasper integration from scratch
+8. **Audit** → custom interceptors + database design
+9. **Multi-tenancy** → filters everywhere, easy to mess up
+10. **Security** → repetitive authorization logic
+
+**Result:** 2-3 weeks before your first real feature.
+
+### FlashAPI eliminates steps 1-10
+
+```java
+// This is your ENTIRE backend for a multi-tenant invoice system
+@Entity
+@FlashEntity(audit = true)
+@FlashSecured(ownerField = "author")
+@FlashMultiTenant(field = "tenantId")
+public class Invoice { /* fields */ }
+```
+
+No repositories. No services. No controllers. No DTOs.  
+Just your domain model with production-grade features built-in.
+
+---
+
+## FlashAPI vs Spring Data REST
+
+| Feature | Spring Data REST | FlashAPI |
+|---------|------------------|----------|
+| **Philosophy** | Prototype tool | Production framework |
+| **Best for** | Admin panels, POCs | Production SaaS APIs |
+| CRUD auto-generation | ✅ | ✅ |
+| Pagination & sorting | ✅ | ✅ |
+| **Multi-tenancy (tenantField)** | ❌ | ✅ |
+| **Audit trail with history** | ❌ | ✅ |
+| **Owner-based security** | ❌ | ✅ |
+| **Export CSV/Excel/PDF** | ❌ | ✅ |
+| **Soft delete + restore** | ❌ | ✅ |
+| **Rate limiting** | ❌ | ✅ |
+| **Bulk operations** | ❌ | ✅ |
+| **WebSocket real-time** | ❌ | ✅ |
+| **Webhooks** | ❌ | ✅ |
+| **Full-text search** | ❌ | ✅ |
+| **Field selection** | ❌ | ✅ |
+| **Declarative counters** | ❌ | ✅ |
+| **Feature guard (SaaS plans)** | ❌ | ✅ |
+| **Lifecycle hooks** | ❌ | ✅ |
+| **Custom templates (PDF)** | ❌ | ✅ |
+
+**When to use Spring Data REST:**
+- Internal admin panels
+- Rapid prototyping
+- Simple CRUD with no business logic
+
+**When to use FlashAPI:**
+- Production SaaS APIs
+- Multi-tenant applications
+- Compliance/audit requirements
+- Need exports, real-time, complex security
+
+📘 **[Detailed comparison guide](docs/vs-spring-data-rest.md)**
+
+---
+
+## Quick Start
+
+### 1. Add the dependency
+
+```xml
+<dependency>
+    <groupId>io.github.hackermanme</groupId>
+    <artifactId>spring-flashapi</artifactId>
+    <version>3.1.2</version> <!-- x-release-please-version -->
+</dependency>
+```
+
+### 2. Enable FlashAPI & annotate your entities
+
+Get a complete production-ready API instantly:
 
 - **Zero boilerplate** — annotate your entity, get a full CRUD API
 - **Progressive disclosure** — FlashAPI recedes as you define your own services or controllers
