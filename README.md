@@ -21,6 +21,7 @@
 Every production REST API needs:
 - ✅ **Multi-tenancy** — automatic data isolation per customer
 - ✅ **Complete audit trail** — who changed what, when, with full history
+- ✅ **Idempotency keys** — prevent duplicate requests (double-click, network retry)
 - ✅ **Export to Excel/PDF** — business users demand it
 - ✅ **Real-time updates** — WebSocket events on data changes
 - ✅ **Owner-based security** — users can only modify their own resources
