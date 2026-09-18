@@ -15,6 +15,7 @@ import io.github.hackermanme.flashapi.export.ExportHandler;
 import io.github.hackermanme.flashapi.guard.FeatureGuardHandler;
 import io.github.hackermanme.flashapi.guard.PlanLimitResolver;
 import io.github.hackermanme.flashapi.hooks.HookRegistry;
+import io.github.hackermanme.flashapi.idempotency.IdempotencyProperties;
 import io.github.hackermanme.flashapi.openapi.ControllerEndpoint;
 import io.github.hackermanme.flashapi.openapi.ControllerScanner;
 import io.github.hackermanme.flashapi.openapi.FlashOpenApiCustomizer;
@@ -55,7 +56,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Configuration
-@EnableConfigurationProperties(FlashProperties.class)
+@EnableConfigurationProperties({FlashProperties.class, IdempotencyProperties.class})
 @AutoConfigurationPackage(basePackages = "io.github.hackermanme.flashapi.audit")
 public class FlashAutoConfiguration {
 
