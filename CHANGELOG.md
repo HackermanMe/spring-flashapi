@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.2.0](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.2...v3.2.0) (2026-09-18)
+
+
+### Features
+
+* implement idempotency keys for duplicate request prevention ([d1b848f](https://github.com/HackermanMe/spring-flashapi/commit/d1b848fd8918ebc8c97be4bba4ea8c611fc7eee2))
+* reposition as production SaaS framework with comprehensive guides ([f8a633c](https://github.com/HackermanMe/spring-flashapi/commit/f8a633c53712955f638180a216cfcd09aff730d2))
+
+
+### Bug Fixes
+
+* auto-register AuditEntry entity for Hibernate scanning ([779aa15](https://github.com/HackermanMe/spring-flashapi/commit/779aa151d99005ed00aaa0f62b6e77c54c794bb1))
+* ownership, currentUserField, softDelete and cache resilience ([ebe6373](https://github.com/HackermanMe/spring-flashapi/commit/ebe6373b8ac0ee096495178139631fd924efdf7d))
+* register IdempotencyProperties as Spring configuration bean ([b2d48cc](https://github.com/HackermanMe/spring-flashapi/commit/b2d48cc7daa09b5e5e2a926a057ab7f469852aa8))
+* resolve multiple SpringBootConfiguration ambiguity in IdempotencyTest ([e2968f4](https://github.com/HackermanMe/spring-flashapi/commit/e2968f4205bd77457cfde78a52fbbacca87da44e))
+
 ## [3.1.2](https://github.com/HackermanMe/spring-flashapi/compare/v3.1.1...v3.1.2) (2026-09-05)
 
 
